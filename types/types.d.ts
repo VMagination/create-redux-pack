@@ -8,7 +8,7 @@ export declare type CreateReduxPackParams<S, PayloadMain> = {
     formatPayload?: (data: PayloadMain) => S;
     payloadMap?: CreateReduxPackPayloadMap<S>;
 };
-declare type Action<T> = {
+export declare type Action<T> = {
     type: string;
     payload: T;
 } & Record<string, any>;
@@ -69,32 +69,26 @@ export declare type CreateReduxPackReturnType<S, PayloadRun, PayloadMain> = {
     selectors: CreateReduxPackSelectors<S>;
 };
 export declare type CreateReduxPackFn = <S = Record<string, any>, PayloadRun = void, PayloadMain = Record<string, any>>(info: CreateReduxPackParams<S, PayloadMain>) => CreateReduxPackReturnType<S, PayloadRun, PayloadMain>;
+export declare type CreateReduxPackActionMap = Record<string, (state: any, action: Action<any>) => typeof state>;
 export declare type CreateReduxPackType = {
     getSuccessName: (name: string) => string;
     getFailName: (name: string) => string;
     getLoadingName: (name: string) => string;
     getResultName: (name: string) => string;
     getErrorName: (name: string) => string;
-    createAction: <Payload, Result>(name: string, formatPayload?: (data: Payload) => Result) => CreateReduxPackAction<Payload, Result | Payload>;
-    createSelector: <T>(reducerName: string, stateKey: string) => CreateReduxPackSelector<T>;
+    getKeyName: (name: string, key: string) => string;
     generator: CreateReduxPackGenerator;
     reducers: Record<string, CreateReduxPackReducer>;
     initialState: CreateReduxPackInitialState;
-    useLogger: () => void;
-    enableLoggerLive: () => void;
-    disableLoggerLive: () => void;
     updateReducer: () => void;
     isLoggerOn: boolean;
-    getRootReducer: (reducers?: Record<string, Record<string, (state: any, action: Action<any>) => typeof state>>, initialState?: Record<string, any>) => Reducer;
+    getRootReducer: (reducers?: Record<string, CreateReduxPackActionMap>, initialState?: Record<string, any>) => Reducer;
+    injectReducerInto: (reducerName: string, actionMap: CreateReduxPackActionMap, initialState: Record<string, any>) => void;
     store: ReturnType<typeof configureStore> | null;
-    setStore: (store: ReturnType<typeof configureStore>) => void;
-    configureStore: (options: Omit<Parameters<typeof configureStore>[0], 'reducer'> & {
-        reducer: Record<string, Record<string, (state: any, action: Action<any>) => typeof state>>;
-        initialState: Record<string, any>;
-    }) => ReturnType<typeof configureStore>;
     preventReducerUpdates: boolean;
     freezeReducerUpdates: () => void;
     releaseReducerUpdates: () => void;
+    resetAction: () => Action<any>;
     withGenerator: <S, PayloadRun, PayloadMain, Gen>(info: CreateReduxPackParams<S, PayloadMain>, generator: {
         [P in keyof Gen]: (info: CreateReduxPackParams<S, PayloadMain>) => Gen[P];
     }) => {
@@ -102,4 +96,3 @@ export declare type CreateReduxPackType = {
     };
 };
 export declare type CreateReduxPackCombinedGenerators<Gen, S, PayloadRun, PayloadMain> = CreateReduxPackReturnType<S, PayloadRun, PayloadMain> & Gen;
-export {};
