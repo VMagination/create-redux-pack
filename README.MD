@@ -67,6 +67,8 @@ To add logic of a pack it is required to inject its reducer and initialState int
 - [loggerToggle](#enablelogger-and-disablelogger)
 - [freezeReducerUpdates](#createreduxpackfreezereducerupdates)
 - [releaseReducerUpdates](#createreduxpackreleasereducerupdates)
+- [createReduxPack.resetAction](#createreduxpackresetaction)
+- [createReduxPack[formatNames]](#createreduxpack-name-formation)
 - [createReduxPack[informationalItems]](#createreduxpackstore)
 
 ### createReduxPack(packInfo) => pack
@@ -274,6 +276,8 @@ Enables / disables logger
 
 > Doesn't prevent actions from others places to be logged, will display any action that was dispatched while active
 
+> It is advised to remove usage of those functions before building
+
 ```js
   import { enableLogger, disableLogger } from 'create-redux-pack';
   // React Component
@@ -296,9 +300,28 @@ Allows all injections of reducers into store and immediately injects all reducer
 
 > It is advised to freeze updated in the beginning of files that are being lazy loaded and release updates in their ends. This feature exists because all packages are injected separately and single bulk update will be more performant.
 
+### createReduxPack.resetAction
+
+Call returns action that can be dispatched to reset store state to initial.
+getSuccessName: (name: string) => string;
+  getFailName: (name: string) => string;
+  getLoadingName: (name: string) => string;
+  getResultName: (name: string) => string;
+  getErrorName: (name: string) => string;
+  getKeyName: (name: string, key: string) => string;
+  
+### createReduxPack name formation
+- *createReduxPack*.**getSuccessName(name)** - return success action name
+- *createReduxPack*.**getFailName(name)** - return fail action name
+- *createReduxPack*.**getLoadingName(name)** - return loading state name
+- *createReduxPack*.**getErrorName(name)** - return error state name
+- *createReduxPack*.**getKeyName(name, key)** - return generic state name
+
+> Run action name is equal to action name
+
 ### createReduxPack.store
 
-*ReadOnly*. Contains store configured with configureStore
+*ReadOnly*. Contains store configured with configureStore.
 
 ### createReduxPack.reducers
 
@@ -312,3 +335,9 @@ Allows all injections of reducers into store and immediately injects all reducer
 
 *ReadOnly*. Contains default generator object.
 
+## ToDo list
+- [ ] Move readonly's to _name format
+- [ ] Injection to Root Reducer for global actions
+- [ ] PayloadMap for run and error actions
+- [ ] Resolve payloadMap key to support nested payload object
+- [ ] Support CreateSelector nested objects
