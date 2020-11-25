@@ -1,7 +1,8 @@
 {
   "name": "create-redux-pack",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Generator for redux",
+  "repository": "https://github.com/VladislavMukhamediev/create-redux-pack",
   "main": "lib/index.js",
   "unpkg": "dist/index.js",
   "module": "es/index.js",
@@ -12,6 +13,13 @@
     "es",
     "src",
     "types"
+  ],
+  "keywords": [
+    "redux",
+    "react",
+    "toolkit",
+    "reducer",
+    "slice"
   ],
   "scripts": {
     "test": "jest",
@@ -30,6 +38,7 @@
     "@babel/preset-flow": "^7.9.0",
     "@babel/preset-typescript": "^7.9.0",
     "@babel/register": "^7.9.0",
+    "@babel/runtime": "^7.12.5",
     "@rollup/plugin-babel": "^5.2.1",
     "@rollup/plugin-node-resolve": "^10.0.0",
     "@rollup/plugin-replace": "^2.3.4",
@@ -53,7 +62,6 @@
     "typescript": "^4.1.2"
   },
   "dependencies": {
-    "@babel/runtime": "^7.12.5",
     "@reduxjs/toolkit": "^1.4.0",
     "redux": "^4.0.5",
     "reselect": "^4.0.0"

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1606288368870" clover="3.2.0">
-  <project timestamp="1606288368870" name="All files">
+<coverage generated="1606306971986" clover="3.2.0">
+  <project timestamp="1606306971986" name="All files">
     <metrics statements="92" coveredstatements="92" conditionals="61" coveredconditionals="54" methods="51" coveredmethods="51" elements="204" coveredelements="197" complexity="0" loc="92" ncloc="92" packages="1" files="1" classes="1"/>
     <file name="index.ts" path="T:\create-redux-pack\src\index.ts">
       <metrics statements="92" coveredstatements="92" conditionals="61" coveredconditionals="54" methods="51" coveredmethods="51"/>

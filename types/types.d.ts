@@ -19,7 +19,7 @@ export declare type CreateReduxPackGenerator = {
     stateNames: CreateReduxPackGeneratorBlock;
     actionNames: CreateReduxPackGeneratorBlock;
     initialState: CreateReduxPackGeneratorBlock;
-    reducers: CreateReduxPackGeneratorBlock;
+    reducer: CreateReduxPackGeneratorBlock;
     selectors: CreateReduxPackGeneratorBlock;
 };
 export declare type CreateReduxPackReducer<PayloadMain = void, PayloadRun = Record<string, any>> = Record<string, (state: Record<string, any>, action: Action<Record<string, any> & {
@@ -32,6 +32,7 @@ export declare type CreateReduxPackPayloadMap<S> = {
         key: string;
         fallback?: any;
         formatSelector?: <DT = any>(data: DT) => any;
+        modifyValue?: (payloadValue: any, prevStateValue?: S[P]) => S[P];
     };
 };
 export declare type CreateReduxPackStateNames<S> = {
@@ -67,6 +68,7 @@ export declare type CreateReduxPackReturnType<S, PayloadRun, PayloadMain> = {
     initialState: CreateReduxPackInitialState;
     reducer: CreateReduxPackReducer<PayloadMain, PayloadRun>;
     selectors: CreateReduxPackSelectors<S>;
+    name: string;
 };
 export declare type CreateReduxPackFn = <S = Record<string, any>, PayloadRun = void, PayloadMain = Record<string, any>>(info: CreateReduxPackParams<S, PayloadMain>) => CreateReduxPackReturnType<S, PayloadRun, PayloadMain>;
 export declare type CreateReduxPackActionMap = Record<string, (state: any, action: Action<any>) => typeof state>;
@@ -90,7 +92,7 @@ export declare type CreateReduxPackType = {
     releaseReducerUpdates: () => void;
     resetAction: () => Action<any>;
     withGenerator: <S, PayloadRun, PayloadMain, Gen>(info: CreateReduxPackParams<S, PayloadMain>, generator: {
-        [P in keyof Gen]: (info: CreateReduxPackParams<S, PayloadMain>) => Gen[P];
+        [P in Exclude<keyof Gen, 'name'>]: (info: CreateReduxPackParams<S, PayloadMain>) => Gen[P];
     }) => {
         [P in keyof CreateReduxPackCombinedGenerators<Gen, S, PayloadRun, PayloadMain>]: CreateReduxPackCombinedGenerators<Gen, S, PayloadRun, PayloadMain>[P];
     };
