@@ -58,6 +58,17 @@ To add logic of a pack it is required to inject its reducer and initialState int
 
 ## API reference
 
+- [createReduxPack](#createreduxpackpackinfo--pack)
+- [createReduxPack.withGenerator](#createreduxpackwithgeneratorpackinfo-generator--injectedpack)
+- [configureStore](#configurestoreoptions--store)
+- [createAction](#createactionname-formatpayload--payload--action)
+- [createSelector](#createselectorreducername-statekey--selector)
+- [createReducerOn](#createreduceronreducername-actionmap-initialstate--void)
+- [loggerToggle](#enablelogger-and-disablelogger)
+- [freezeReducerUpdates](#createreduxpackfreezereducerupdates)
+- [releaseReducerUpdates](#createreduxpackreleasereducerupdates)
+- [createReduxPack[informationalItems]](#createreduxpackstore)
+
 ### createReduxPack(packInfo) => pack
 Creates pack of redux components with default generator
 
@@ -67,7 +78,7 @@ Creates pack of redux components with default generator
 - **PayloadRun** = void - type of run Payload
 - **PayloadMain** = Record<string, any> - type of success Payload
 
-#### packInfo params
+#### packInfo
 
 - **name** - *string*, Required, pack name, will be modified to be unique
 - **reducerName** - *string*, Required, name of reducer, will be used to add or inject logic into specified reducer
@@ -237,6 +248,10 @@ Main purpose of withGenerator is to inject logic into default generator
 
 ```
 
+### configureStore(options) => store
+
+Configures store with provided options, **accepts same parameters as configureStore of @reduxjs/toolkit except reducer**, reducer will be added internally, provided will be rejected.
+
 ### createAction(name, formatPayload) => (payload) => Action
 
 Creates same action as CRPack creates internally. Accepts action name and a function to format payload.
@@ -246,10 +261,6 @@ Creates same action as CRPack creates internally. Accepts action name and a func
 Creates same selector as CRPack creates internally. Accepts reducer name  to get state from and that state's key.
 
 > Doesn't support getting data from nested objects. It is advised to use reselect createSelector using pack's stateNames to get what you need.
-
-### configureStore(options) => store
-
-Configures store with provided options, **accepts same parameters as configureStore of @reduxjs/toolkit except reducer**, reducer will be added internally, provided will be rejected.
 
 ### createReducerOn(reducerName, actionMap, initialState) => void
 
