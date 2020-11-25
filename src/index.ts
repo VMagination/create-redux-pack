@@ -255,7 +255,10 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
         [getLoadingName(name)]: false,
         [getResultName(name)]: resultInitial,
         ...((Object.keys(payloadMap) as Array<keyof S>).reduce(
-          (accum, key) => ({ ...accum, [getKeyName(name, `${key}`)]: payloadMap[key]?.initial ?? null }),
+          (accum, key) => ({
+            ...accum,
+            [payloadMap[key]?.modifyValue ? key : getKeyName(name, `${key}`)]: payloadMap[key]?.initial ?? null,
+          }),
           {},
         ) as S),
       }),
@@ -290,13 +293,16 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
           ...(Object.keys(payloadMap) as Array<keyof S>).reduce(
             (accum, key) => {
               const param = payloadMap[key]?.key;
+              const modification = payloadMap[key]?.modifyValue;
+              const payloadValue =
+                payload && param ? payload[param] ?? payloadMap[key]?.fallback : payloadMap[key]?.fallback;
               return {
                 ...accum,
                 ...(param
                   ? {
-                      [getKeyName(name, `${key}`)]: payload
-                        ? payload[param] ?? payloadMap[key]?.fallback
-                        : payloadMap[key]?.fallback,
+                      [modification ? key : getKeyName(name, `${key}`)]: modification
+                        ? modification(payloadValue, state[key as string])
+                        : payloadValue,
                     }
                   : {}),
               };

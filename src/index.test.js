@@ -45,6 +45,18 @@ const packWithPayload = createReduxPack({
   },
 });
 
+const packWithPayloadModify = createReduxPack({
+  name: 'PackWithPayload + modify',
+  reducerName: reducerName + 3,
+  payloadMap: {
+    [packWithPayload.stateNames.item1]: {
+      key: 'passedItem1',
+      initial: packWithPayload.initialState[packWithPayload.stateNames.item1],
+      modifyValue: (passedItem, prevValue) => prevValue + passedItem,
+    },
+  },
+});
+
 const packWithGenerator = createReduxPack.withGenerator(
   {
     name: 'PackWithGenerator',
@@ -161,6 +173,10 @@ test('check store configuration', () => {
       [testPack.stateNames.result]: null,
     },
     [reducerName + 3]: {
+      [packWithPayloadModify.stateNames.error]: null,
+      [packWithPayloadModify.stateNames.isLoading]: false,
+      [packWithPayloadModify.stateNames.result]: null,
+      [packWithPayloadModify.stateNames.result]: null,
       [packWithPayload.stateNames.error]: null,
       [packWithPayload.stateNames.isLoading]: false,
       [packWithPayload.stateNames.result]: null,
@@ -341,6 +357,22 @@ test('check pack with payloadMap', () => {
   expect(packWithPayload.selectors.item2(state())).toEqual(10);
 });
 
+test('check pack with payloadMap Modify', () => {
+  const state = () => createReduxPack.store.getState();
+
+  createReduxPack.store.dispatch(packWithPayload.actions.success({ passedItem1: 'setItem1', passedItem2: { a: 2 } }));
+  expect(packWithPayload.selectors.result(state())).toEqual({ passedItem1: 'setItem1', passedItem2: { a: 2 } });
+  expect(packWithPayload.selectors.item1(state())).toEqual('setItem1');
+  expect(packWithPayload.selectors.item2(state())).toEqual(2);
+
+  createReduxPack.store.dispatch(packWithPayloadModify.actions.success({ passedItem1: 1 }));
+
+  expect(packWithPayloadModify.selectors.isLoading(state())).toEqual(false);
+  expect(packWithPayloadModify.selectors.error(state())).toEqual(null);
+  expect(packWithPayloadModify.selectors.result(state())).toEqual({ passedItem1: 1 });
+  expect(packWithPayload.selectors.item1(state())).toEqual('setItem11');
+});
+
 test('check pack with generator', () => {
   // const state = () => createReduxPack.store.getState();
 
@@ -403,11 +435,15 @@ test('check createSelector', () => {
 });
 
 test('check getRootReducer', () => {
+  console.log = jest.fn();
   expect(createReduxPack.getRootReducer).toBeDefined();
   enableLogger();
   expect(createReduxPack.getRootReducer()).toBeTruthy();
+  expect(console.log).toHaveBeenCalled();
+  console.log = jest.fn();
   disableLogger();
   expect(createReduxPack.getRootReducer()).toBeTruthy();
+  expect(console.log).not.toHaveBeenCalled();
   expect(
     createReduxPack.getRootReducer(
       {

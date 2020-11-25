@@ -15,7 +15,6 @@ export type Action<T> = {
   payload: T;
 } & Record<string, any>;
 
-
 export type CreateReduxPackGeneratorBlock<RT = any> = <
   S = Record<string, any>,
   PayloadMain = Record<string, any>,
@@ -54,6 +53,7 @@ export type CreateReduxPackPayloadMap<S> = {
     key: string;
     fallback?: any;
     formatSelector?: <DT = any>(data: DT) => any;
+    modifyValue?: (payloadValue: any, prevStateValue?: S[P]) => S[P];
   };
 };
 
@@ -92,7 +92,7 @@ export type CreateReduxPackReturnType<S, PayloadRun, PayloadMain> = {
   initialState: CreateReduxPackInitialState;
   reducer: CreateReduxPackReducer<PayloadMain, PayloadRun>;
   selectors: CreateReduxPackSelectors<S>;
-  name: string,
+  name: string;
 };
 export type CreateReduxPackFn = <S = Record<string, any>, PayloadRun = void, PayloadMain = Record<string, any>>(
   info: CreateReduxPackParams<S, PayloadMain>,
