@@ -6,7 +6,7 @@ Most Apps with Redux state management use a lot of boilerplates. This library mo
 
 ## Lazy loading
 
-CRPack fully and internally supports lazy loading. If you are using webpack reducers will be injected on first package import.
+CRPack fully and internally supports lazy loading. If you are using webpack reducer of each package will be injected on their first import.
 
 > Lazy loading only works if store was configured using provided configureStore utility.
 

@@ -22,7 +22,7 @@
     "slice"
   ],
   "scripts": {
-    "test": "jest",
+    "test": "jest src --coverage",
     "build": "rollup -c"
   },
   "author": "Vladya",
