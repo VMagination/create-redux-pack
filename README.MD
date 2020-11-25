@@ -317,7 +317,7 @@ getSuccessName: (name: string) => string;
 - *createReduxPack*.**getErrorName(name)** - return error state name
 - *createReduxPack*.**getKeyName(name, key)** - return generic state name
 
-> Run action name is equal to action name
+> Run action name is equal to pack name
 
 ### createReduxPack.store
 
