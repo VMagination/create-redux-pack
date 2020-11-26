@@ -32,7 +32,7 @@ To install CRPack simple run:
 npm install --save create-redux-pack
 ```
 
-## Using without configureStore and lazy loading
+## Using without configureStore utility
 
 To add logic of a pack it is required to inject its reducer and initialState into according reducer, other parts like selectors and actions can be used without other requirements.
 
@@ -52,7 +52,27 @@ To add logic of a pack it is required to inject its reducer and initialState int
 
     export const sampleReducer = createReducer(initialState, {
       ...pack.reducer,
-    })        
+    });      
+
+    // Or traditional way
+
+    export const sampleReducerFn = (state, action) => {
+      if (pack.reducer[action.type]) {
+        return pack.reducer[action.type](state, action)
+      }
+
+      switch(action.type) {
+      case 'something':
+        return {
+          ...state,
+          whatever: action.payload,
+        }
+      default: 
+        return {
+          ...state,
+        }
+      }
+    }  
 
 ```
 
