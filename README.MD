@@ -84,7 +84,7 @@ To add logic of a pack it is required to inject its reducer and initialState int
 - [mergeGenerators](#mergegeneratorsgenerator--generator)
 - [createAction](#createactionname-formatpayload--payload--action)
 - [createSelector](#createselectorreducername-statekey--selector)
-- [createReducerCase](#createreducercasestate-action--partialstate)
+- [createReducerCase](#createreducercasestate-action--partial)
 - [createReducerOn](#createreduceronreducername-actionmap-initialstate--void)
 - [loggerToggle](#enablelogger-and-disablelogger)
 - [freezeReducerUpdates](#createreduxpackfreezereducerupdates)
@@ -292,7 +292,7 @@ Creates same selector as CRPack creates internally. Accepts reducer name  to get
 
 > Doesn't support getting data from nested objects. It is advised to use reselect createSelector using pack's stateNames to get what you need.
 
-### createReducerCase((state, action)) => Partial<State>
+### createReducerCase(state, action) => Partial<State>
 
 Creates reducer case, will spread state in result itself. Exists to skip comparison stage of generator's merging.
 
