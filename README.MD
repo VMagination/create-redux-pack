@@ -81,8 +81,10 @@ To add logic of a pack it is required to inject its reducer and initialState int
 - [createReduxPack](#createreduxpackpackinfo--pack)
 - [createReduxPack.withGenerator](#createreduxpackwithgeneratorpackinfo-generator--injectedpack)
 - [configureStore](#configurestoreoptions--store)
+- [mergeGenerators](#mergegeneratorsgenerator--generator)
 - [createAction](#createactionname-formatpayload--payload--action)
 - [createSelector](#createselectorreducername-statekey--selector)
+- [createReducerCase](#createreducercasestate-action--partialstate)
 - [createReducerOn](#createreduceronreducername-actionmap-initialstate--void)
 - [loggerToggle](#enablelogger-and-disablelogger)
 - [freezeReducerUpdates](#createreduxpackfreezereducerupdates)
@@ -274,6 +276,12 @@ Main purpose of withGenerator is to inject logic into default generator
 
 Configures store with provided options, **accepts same parameters as configureStore of @reduxjs/toolkit except reducer**, reducer will be added internally, provided will be rejected.
 
+### mergeGenerators(...generator) => generator
+
+Merges multiple generators into one. Exists to combine logic of several reusable generators.
+
+> Will merge results of reducer cases
+
 ### createAction(name, formatPayload) => (payload) => Action
 
 Creates same action as CRPack creates internally. Accepts action name and a function to format payload.
@@ -283,6 +291,10 @@ Creates same action as CRPack creates internally. Accepts action name and a func
 Creates same selector as CRPack creates internally. Accepts reducer name  to get state from and that state's key.
 
 > Doesn't support getting data from nested objects. It is advised to use reselect createSelector using pack's stateNames to get what you need.
+
+### createReducerCase((state, action)) => Partial<State>
+
+Creates reducer case, will spread state in result itself. Exists to skip comparison stage of generator's merging.
 
 ### createReducerOn(reducerName, actionMap, initialState) => void
 
@@ -323,40 +335,35 @@ Allows all injections of reducers into store and immediately injects all reducer
 ### createReduxPack.resetAction
 
 Call returns action that can be dispatched to reset store state to initial.
-getSuccessName: (name: string) => string;
-  getFailName: (name: string) => string;
-  getLoadingName: (name: string) => string;
-  getResultName: (name: string) => string;
-  getErrorName: (name: string) => string;
-  getKeyName: (name: string, key: string) => string;
   
 ### createReduxPack name formation
-- *createReduxPack*.**getSuccessName(name)** - return success action name
-- *createReduxPack*.**getFailName(name)** - return fail action name
-- *createReduxPack*.**getLoadingName(name)** - return loading state name
-- *createReduxPack*.**getErrorName(name)** - return error state name
-- *createReduxPack*.**getKeyName(name, key)** - return generic state name
+- *createReduxPack*.**getRunName(name)** - returns run action name
+- *createReduxPack*.**getSuccessName(name)** - returns success action name
+- *createReduxPack*.**getFailName(name)** - returns fail action name
+- *createReduxPack*.**getLoadingName(name)** - returns loading state name
+- *createReduxPack*.**getErrorName(name)** - returns error state name
+- *createReduxPack*.**getKeyName(name, key)** - returns generic state name
 
-> Run action name is equal to pack name
-
-### createReduxPack.store
+### createReduxPack._store
 
 *ReadOnly*. Contains store configured with configureStore.
 
-### createReduxPack.reducers
+### createReduxPack._reducers
 
 *ReadOnly*. Contains all injected reducers (merged)
 
-### createReduxPack.initialState
+### createReduxPack._initialState
 
 *ReadOnly*. Contains initialState of all injected reducers (merged)
 
-### createReduxPack.generator
+### createReduxPack._generator
 
 *ReadOnly*. Contains default generator object.
 
 ## ToDo list
-- [ ] Move readonly's to _name format
+- [x] Expose merge for generators
+- [x] Merge results of merged reducers
+- [ ] Add possibility to expand functionality with plugins
 - [ ] Injection to Root Reducer for global actions
 - [ ] PayloadMap for run and error actions
 - [ ] Resolve payloadMap key to support nested payload object

@@ -39,10 +39,7 @@ export type CreateReduxPackGenerator = {
 
 export type CreateReduxPackReducer<PayloadMain = void, PayloadRun = Record<string, any>> = Record<
   string,
-  (
-    state: Record<string, any>,
-    action: Action<Record<string, any> & { error?: string } & PayloadMain & PayloadRun>,
-  ) => Record<string, null | boolean | string>
+  (state: any, action: Action<Record<string, any> & { error?: string } & PayloadMain & PayloadRun>) => any
 >;
 
 export type CreateReduxPackInitialState = Record<string, any>;
@@ -101,6 +98,7 @@ export type CreateReduxPackFn = <S = Record<string, any>, PayloadRun = void, Pay
 export type CreateReduxPackActionMap = Record<string, (state: any, action: Action<any>) => typeof state>;
 
 export type CreateReduxPackType = {
+  getRunName: (name: string) => string;
   getSuccessName: (name: string) => string;
   getFailName: (name: string) => string;
   getLoadingName: (name: string) => string;
@@ -124,9 +122,9 @@ export type CreateReduxPackType = {
   disableLogger: () => void;
   */
 
-  generator: CreateReduxPackGenerator;
-  reducers: Record<string, CreateReduxPackReducer>;
-  initialState: CreateReduxPackInitialState;
+  _generator: CreateReduxPackGenerator;
+  _reducers: Record<string, CreateReduxPackReducer>;
+  _initialState: CreateReduxPackInitialState;
   updateReducer: () => void;
   isLoggerOn: boolean;
   getRootReducer: (reducers?: Record<string, CreateReduxPackActionMap>, initialState?: Record<string, any>) => Reducer;
@@ -135,7 +133,7 @@ export type CreateReduxPackType = {
     actionMap: CreateReduxPackActionMap,
     initialState: Record<string, any>,
   ) => void;
-  store: ReturnType<typeof configureStore> | null;
+  _store: ReturnType<typeof configureStore> | null;
   preventReducerUpdates: boolean;
   freezeReducerUpdates: () => void;
   releaseReducerUpdates: () => void;

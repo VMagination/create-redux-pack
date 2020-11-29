@@ -26,12 +26,6 @@ import { createSelector as createReSelector, OutputSelector } from 'reselect';
 
 const RESET_ACTION_TYPE = '__CREATE_REDUX_PACK_RESET_ACTION__';
 
-const getSuccessName = (name: string) => `${name}Success`;
-const getFailName = (name: string) => `${name}Fail`;
-const getLoadingName = (name: string) => `is${name}Loading`;
-const getResultName = (name: string) => `${name}Result`;
-const getErrorName = (name: string) => `${name}Error`;
-const getKeyName = (name: string, key: string) => `${name}_${key}`;
 const loggerMatcher: any = () => true;
 
 const formatParams = <S = Record<string, any>, PayloadMain = Record<string, any>>({
@@ -49,8 +43,8 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
     const info = formatParams(infoRaw);
     const { reducerName } = info;
 
-    const generatedReducerPart = createReduxPack.generator.reducer<S, PayloadMain, PayloadRun>(info);
-    const generatedInitialStatePart = createReduxPack.generator.initialState<S, PayloadMain, PayloadRun>(info);
+    const generatedReducerPart = createReduxPack._generator.reducer<S, PayloadMain, PayloadRun>(info);
+    const generatedInitialStatePart = createReduxPack._generator.initialState<S, PayloadMain, PayloadRun>(info);
 
     createReduxPack.injectReducerInto(reducerName, generatedReducerPart, generatedInitialStatePart);
 
@@ -61,19 +55,21 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
 
     return {
       name: info.name,
-      stateNames: createReduxPack.generator.stateNames<S, PayloadMain, CreateReduxPackStateNames<S>>(info),
-      actionNames: createReduxPack.generator.actionNames<S, PayloadMain, CreateReduxPackActionNames>(info),
-      actions: createReduxPack.generator.actions<S, PayloadMain, CreateReduxPackActions<S, PayloadRun, PayloadMain>>(
+      stateNames: createReduxPack._generator.stateNames<S, PayloadMain, CreateReduxPackStateNames<S>>(info),
+      actionNames: createReduxPack._generator.actionNames<S, PayloadMain, CreateReduxPackActionNames>(info),
+      actions: createReduxPack._generator.actions<S, PayloadMain, CreateReduxPackActions<S, PayloadRun, PayloadMain>>(
         info,
       ),
-      selectors: createReduxPack.generator.selectors<S, PayloadMain, CreateReduxPackSelectors<S>>(info),
-      initialState: createReduxPack.generator.initialState<S, PayloadMain, CreateReduxPackInitialState>(info),
-      reducer: createReduxPack.generator.reducer<S, PayloadMain, CreateReduxPackReducer<PayloadMain, PayloadRun>>(info),
+      selectors: createReduxPack._generator.selectors<S, PayloadMain, CreateReduxPackSelectors<S>>(info),
+      initialState: createReduxPack._generator.initialState<S, PayloadMain, CreateReduxPackInitialState>(info),
+      reducer: createReduxPack._generator.reducer<S, PayloadMain, CreateReduxPackReducer<PayloadMain, PayloadRun>>(
+        info,
+      ),
     };
   },
   {
-    reducers: {},
-    initialState: {},
+    _reducers: {},
+    _initialState: {},
     isLoggerOn: false,
     getRootReducer: (
       reducers: Parameters<CreateReduxPackType['getRootReducer']>[0],
@@ -85,16 +81,16 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
             ...accum,
             ...(accum[key] ? { [key]: { ...accum[key], ...(reducers || {})[key] } } : { [key]: (reducers || {})[key] }),
           } as any),
-        createReduxPack.reducers,
+        createReduxPack._reducers,
       );
-      createReduxPack.reducers = combinedObjects;
+      createReduxPack._reducers = combinedObjects;
       const combinedReducers = Object.keys(combinedObjects).reduce(
         (accum, key) => {
           const initial =
             initialState && initialState[key]
-              ? { ...createReduxPack.initialState[key], ...initialState[key] }
-              : createReduxPack.initialState[key];
-          createReduxPack.initialState[key] = initial;
+              ? { ...createReduxPack._initialState[key], ...initialState[key] }
+              : createReduxPack._initialState[key];
+          createReduxPack._initialState[key] = initial;
           return {
             ...accum,
             [key]: createReducer(initial, combinedObjects[key]),
@@ -115,7 +111,7 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
           : {}) as Record<string, Reducer>,
       );
       return (state: any, action: AnyAction) => {
-        if (action.type === RESET_ACTION_TYPE) return createReduxPack.initialState;
+        if (action.type === RESET_ACTION_TYPE) return createReduxPack._initialState;
         return combineReducers(combinedReducers)(state, action);
       };
     },
@@ -135,39 +131,28 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
     } => {
       const info = formatParams(infoRaw);
       const { reducerName } = info;
+      const mergedGen = mergeGenerators(createReduxPack._generator, generator);
+      const pack = {
+        ...Object.keys(mergedGen).reduce(
+          (accum, key) => ({ ...accum, [key]: mergedGen[key](info) }),
+          {} as {
+            [P in keyof CreateReduxPackCombinedGenerators<
+              Gen,
+              S,
+              PayloadRun,
+              PayloadMain
+            >]: CreateReduxPackCombinedGenerators<Gen, S, PayloadRun, PayloadMain>[P];
+          },
+        ),
+        name: info.name,
+      };
 
-      const combinedKeys = Object.keys({
-        ...createReduxPack.generator,
-        ...generator,
-      }); /* as PrevReturnType<S, PayloadRun, PayloadMain> & Required<typeof generator>;*/
-
-      const pack = combinedKeys.reduce(
-        (accum, key) => {
-          const currentGen = createReduxPack.generator[key as keyof CreateReduxPackGenerator];
-          const appendedGen = generator[key as Exclude<keyof Gen, 'name'>];
-          return {
-            ...accum,
-            [key]: {
-              ...(currentGen ? currentGen<S, PayloadMain, ReturnType<typeof currentGen>>(info) : {}),
-              ...(appendedGen ? appendedGen(info) : {}),
-            },
-          };
-        },
-        {} as {
-          [P in keyof CreateReduxPackCombinedGenerators<
-            Gen,
-            S,
-            PayloadRun,
-            PayloadMain
-          >]: CreateReduxPackCombinedGenerators<Gen, S, PayloadRun, PayloadMain>[P];
-        },
-      );
       createReduxPack.injectReducerInto(reducerName, pack.reducer, pack.initialState);
-      return { ...pack, name: info.name };
+      return pack;
     },
     updateReducer: () => {
-      if (createReduxPack.store && !createReduxPack.preventReducerUpdates) {
-        createReduxPack.store.replaceReducer(createReduxPack.getRootReducer());
+      if (createReduxPack._store && !createReduxPack.preventReducerUpdates) {
+        createReduxPack._store.replaceReducer(createReduxPack.getRootReducer());
       }
     },
     injectReducerInto: (
@@ -175,24 +160,24 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
       actionMap: CreateReduxPackActionMap,
       initialState: Record<string, any>,
     ) => {
-      createReduxPack.reducers = {
-        ...createReduxPack.reducers,
-        ...(createReduxPack.reducers[reducerName]
+      createReduxPack._reducers = {
+        ...createReduxPack._reducers,
+        ...(createReduxPack._reducers[reducerName]
           ? {
               [reducerName]: {
-                ...createReduxPack.reducers[reducerName],
+                ...createReduxPack._reducers[reducerName],
                 ...actionMap,
               },
             }
           : { [reducerName]: actionMap }),
       } as Record<string, CreateReduxPackReducer>;
 
-      createReduxPack.initialState = {
-        ...createReduxPack.initialState,
-        ...(createReduxPack.initialState[reducerName]
+      createReduxPack._initialState = {
+        ...createReduxPack._initialState,
+        ...(createReduxPack._initialState[reducerName]
           ? {
               [reducerName]: {
-                ...createReduxPack.initialState[reducerName],
+                ...createReduxPack._initialState[reducerName],
                 ...initialState,
               },
             }
@@ -209,19 +194,17 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
       createReduxPack.preventReducerUpdates = false;
       createReduxPack.updateReducer();
     },
-    store: null,
-    generator: {
+    _store: null,
+    _generator: {
       actions: <S, PayloadRun, PayloadMain>({ name, formatPayload }: CreateReduxPackParams<S, PayloadMain>) => ({
-        run: createToolkitAction(name, (data: PayloadRun) => ({ payload: data })),
-        success: createToolkitAction(getSuccessName(name), (data: PayloadMain) => ({
-          payload: formatPayload ? formatPayload(data) : data,
-        })),
-        fail: createToolkitAction(getFailName(name), (data: any) => ({ payload: data })),
+        run: createAction<PayloadRun>(createReduxPack.getRunName(name)),
+        success: createAction<PayloadMain, S>(createReduxPack.getSuccessName(name), formatPayload),
+        fail: createAction<string | ({ error: string } & Record<string, any>)>(createReduxPack.getFailName(name)),
       }),
       actionNames: ({ name }) => ({
-        run: name,
-        success: getSuccessName(name),
-        fail: getFailName(name),
+        run: createReduxPack.getRunName(name),
+        success: createReduxPack.getSuccessName(name),
+        fail: createReduxPack.getFailName(name),
       }),
       selectors: <S, PayloadMain>({
         name,
@@ -230,15 +213,21 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
       }: CreateReduxPackParams<S, PayloadMain>) => {
         const getReducerState = (state: any) => state[reducerName];
         return {
-          isLoading: createReSelector<any, any, boolean>(getReducerState, (state) => state[getLoadingName(name)]),
-          result: createReSelector<any, any, S>(getReducerState, (state) => state[getResultName(name)]),
-          error: createReSelector<any, any, null | string>(getReducerState, (state) => state[getErrorName(name)]),
+          isLoading: createReSelector<any, any, boolean>(
+            getReducerState,
+            (state) => state[createReduxPack.getLoadingName(name)],
+          ),
+          result: createReSelector<any, any, S>(getReducerState, (state) => state[createReduxPack.getResultName(name)]),
+          error: createReSelector<any, any, null | string>(
+            getReducerState,
+            (state) => state[createReduxPack.getErrorName(name)],
+          ),
           ...((Object.keys(payloadMap) as Array<keyof S>).reduce((accum, key) => {
             const format = payloadMap[key]?.formatSelector || ((state): any => state);
             return {
               ...accum,
               [key]: createReSelector<any, any, ReturnType<typeof format>>(getReducerState, (state) =>
-                format(state[getKeyName(name, `${key}`)]),
+                format(state[createReduxPack.getKeyName(name, `${key}`)]),
               ),
             };
           }, {}) as {
@@ -251,13 +240,14 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
         resultInitial = null,
         payloadMap = {} as CreateReduxPackPayloadMap<S>,
       }: CreateReduxPackParams<S, PayloadMain>) => ({
-        [getErrorName(name)]: null,
-        [getLoadingName(name)]: false,
-        [getResultName(name)]: resultInitial,
+        [createReduxPack.getErrorName(name)]: null,
+        [createReduxPack.getLoadingName(name)]: false,
+        [createReduxPack.getResultName(name)]: resultInitial,
         ...((Object.keys(payloadMap) as Array<keyof S>).reduce(
           (accum, key) => ({
             ...accum,
-            [payloadMap[key]?.modifyValue ? key : getKeyName(name, `${key}`)]: payloadMap[key]?.initial ?? null,
+            [payloadMap[key]?.modifyValue ? key : createReduxPack.getKeyName(name, `${key}`)]:
+              payloadMap[key]?.initial ?? null,
           }),
           {},
         ) as S),
@@ -266,13 +256,13 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
         name,
         payloadMap = {} as CreateReduxPackPayloadMap<S>,
       }: CreateReduxPackParams<S, PayloadMain>) => ({
-        isLoading: getLoadingName(name),
-        error: getErrorName(name),
-        result: getResultName(name),
+        isLoading: createReduxPack.getLoadingName(name),
+        error: createReduxPack.getErrorName(name),
+        result: createReduxPack.getResultName(name),
         ...(Object.keys(payloadMap).reduce(
           (accum, key) => ({
             ...accum,
-            [key]: getKeyName(name, `${key}`),
+            [key]: createReduxPack.getKeyName(name, `${key}`),
           }),
           {},
         ) as {
@@ -283,13 +273,11 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
         name,
         payloadMap = {} as CreateReduxPackPayloadMap<S>,
       }: CreateReduxPackParams<S, PayloadMain>): CreateReduxPackReducer<PayloadMain, PayloadRun> => ({
-        [name]: (state) => ({
-          ...state,
-          [getErrorName(name)]: null,
-          [getLoadingName(name)]: true,
-        }),
-        [getSuccessName(name)]: (state, { payload }) => ({
-          ...state,
+        [createReduxPack.getRunName(name)]: createReducerCase(() => ({
+          [createReduxPack.getErrorName(name)]: null,
+          [createReduxPack.getLoadingName(name)]: true,
+        })),
+        [createReduxPack.getSuccessName(name)]: createReducerCase((state, { payload }) => ({
           ...(Object.keys(payloadMap) as Array<keyof S>).reduce(
             (accum, key) => {
               const param = payloadMap[key]?.key;
@@ -300,7 +288,7 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
                 ...accum,
                 ...(param
                   ? {
-                      [modification ? key : getKeyName(name, `${key}`)]: modification
+                      [modification ? key : createReduxPack.getKeyName(name, `${key}`)]: modification
                         ? modification(payloadValue, state[key as string])
                         : payloadValue,
                     }
@@ -308,24 +296,25 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
               };
             },
             {
-              [getResultName(name)]: payload,
+              [createReduxPack.getResultName(name)]: payload,
             },
           ),
-          [getLoadingName(name)]: false,
-        }),
-        [getFailName(name)]: (state, action) => ({
-          ...state,
-          [getErrorName(name)]: action.payload?.error || action.payload,
-          [getLoadingName(name)]: false,
-        }),
+          [createReduxPack.getLoadingName(name)]: false,
+          [createReduxPack.getErrorName(name)]: null,
+        })),
+        [createReduxPack.getFailName(name)]: createReducerCase((_state, action) => ({
+          [createReduxPack.getErrorName(name)]: action.payload?.error || action.payload,
+          [createReduxPack.getLoadingName(name)]: false,
+        })),
       }),
     } as CreateReduxPackGenerator,
-    getSuccessName,
-    getFailName,
-    getLoadingName,
-    getResultName,
-    getErrorName,
-    getKeyName,
+    getRunName: (name: string) => `${name}Run`,
+    getSuccessName: (name: string) => `${name}Success`,
+    getFailName: (name: string) => `${name}Fail`,
+    getLoadingName: (name: string) => `is${name}Loading`,
+    getResultName: (name: string) => `${name}Result`,
+    getErrorName: (name: string) => `${name}Error`,
+    getKeyName: (name: string, key: string) => `${name}_${key}`,
   },
 );
 
@@ -349,13 +338,22 @@ const createSelector = <T>(reducerName: string, stateKey: string) =>
     (state) => state[stateKey],
   );
 
-const createAction = <Payload, Result>(
+const createAction = <Payload, Result = Payload>(
   name: string,
   formatPayload?: (data: Payload) => Result,
 ): CreateReduxPackAction<Payload, Result | Payload> =>
   createToolkitAction(name, (data: Payload) => ({
     payload: formatPayload ? formatPayload(data) : data,
   }));
+
+const createReducerCase = <S = Record<string, any>>(
+  reducerCase: (state: S, action: Action<any>) => S,
+): ((state: S, action: Action<any>, isMerging?: boolean) => S) => {
+  return (state: S, action: Action<any>, isMerging?: boolean) => ({
+    ...(isMerging ? {} : state),
+    ...reducerCase(state, action),
+  });
+};
 
 const configureStore: (
   options: Omit<Parameters<typeof configureStoreToolkit>[0], 'reducer'>,
@@ -364,7 +362,7 @@ const configureStore: (
     ...options,
     reducer: createReduxPack.getRootReducer(),
   });
-  createReduxPack.store = store;
+  createReduxPack._store = store;
   return store;
 };
 
@@ -387,9 +385,86 @@ const createReducerOn = <S>(
       : { ...initialState },
   };*/
 
-  createReduxPack.injectReducerInto(reducerName, actionMap, initialState);
+  createReduxPack.injectReducerInto(reducerName || 'UnspecifiedReducer', actionMap || {}, initialState || {});
 };
 
-export { createSelector, createAction, configureStore, enableLogger, disableLogger, createReducerOn };
+const mergeGenerators = <T = Record<string, any>>(...generators: Record<string, any>[]): T => {
+  try {
+    const keyList = [...new Set(generators.reduce<string[]>((accum, gen) => [...accum, ...Object.keys(gen)], []))];
+    let reducer: (info: CreateReduxPackParams<any, any>) => Record<string, any> = () => ({});
+    if (keyList.includes('reducer')) {
+      reducer = (info) => {
+        const reducers = generators
+          .filter((gen) => gen.hasOwnProperty('reducer'))
+          .map((gen) => gen.reducer(info))
+          .filter((gen) => gen && typeof gen === 'object' && gen?.constructor?.name === 'Object');
+        const reducersKeys = [
+          ...new Set(reducers.reduce<string[]>((accum, reducer) => [...accum, ...Object.keys(reducer)], [])),
+        ];
+        return reducersKeys.reduce(
+          (accum, reducerKey) => ({
+            ...accum,
+            [reducerKey]: (state: Record<string, any> = {}, action: Action<any>) => {
+              const currentReducers = reducers.filter((reducer) => reducer.hasOwnProperty(reducerKey));
+              return currentReducers.reduce(
+                (innerAccum, currentReducer) => {
+                  let toReturn = currentReducer[reducerKey](state, action, true);
+                  const toReturnKeys = Object.keys(toReturn);
+                  if (toReturnKeys.length >= Object.keys(state).length) {
+                    console.warn(
+                      'CRPack: mergeGenerators received a reducer case with state directly added in result, to improve performance please use createReducerCase and prevent previous state from spreading into result, found in',
+                      reducerKey,
+                    );
+                    toReturn = toReturnKeys.reduce(
+                      (accum, key) => ({
+                        ...accum,
+                        ...(!state[key] || toReturn[key] !== state[key] ? { [key]: toReturn[key] } : {}),
+                      }),
+                      {},
+                    );
+                  }
+                  return {
+                    ...innerAccum,
+                    ...toReturn,
+                  };
+                },
+                { ...state },
+              );
+            },
+          }),
+          {},
+        );
+      };
+    }
+    const result = keyList.reduce(
+      (accum, key) => ({
+        ...accum,
+        [key]: (info: CreateReduxPackParams<any, any>) => {
+          return generators
+            .filter((gen) => gen.hasOwnProperty(key))
+            .reduce((accum, gen) => ({ ...accum, ...gen[key](info) }), {});
+        },
+      }),
+      {} as Record<string, any>,
+    );
+    return ({
+      ...result,
+      reducer,
+    } as unknown) as T;
+  } catch (e) {
+    throw new Error('CRPack: mergeGenerators received invalid generators');
+  }
+};
+
+export {
+  createSelector,
+  createAction,
+  configureStore,
+  enableLogger,
+  disableLogger,
+  createReducerOn,
+  createReducerCase,
+  mergeGenerators,
+};
 
 export default createReduxPack;
