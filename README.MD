@@ -1,6 +1,6 @@
 ## Create Redux Pack (CRPack)
 
-Create Redux Pack is a wrapper around **@reduxjs/toolkit**, **redux** and **reselect** meant to reduce development time and amount of common errors.
+Create Redux Pack is a wrapper around **@reduxjs/toolkit** and **reselect** meant to reduce development time and amount of common errors working with **redux**.
 
 Most Apps with Redux state management use a lot of boilerplates. This library moves those boilerplates / repetitions away from your eyes. Even if default logic of CRPack doesn't fit your code style you can always make your own reusable generator(s) and still save a lot of time.
 
@@ -56,7 +56,7 @@ To add logic of a pack it is required to inject its reducer and initialState int
 
     // Or traditional way
 
-    export const sampleReducerFn = (state, action) => {
+    export const sampleReducerFn = (state = initialState, action) => {
       if (pack.reducer[action.type]) {
         return pack.reducer[action.type](state, action)
       }
@@ -79,7 +79,7 @@ To add logic of a pack it is required to inject its reducer and initialState int
 ## API reference
 
 - [createReduxPack](#createreduxpackpackinfo--pack)
-- [createReduxPack.withGenerator](#createreduxpackwithgeneratorpackinfo-generator--injectedpack)
+- [pack.withGenerator](#packwithgeneratorpackinfo-generator--injectedpack)
 - [configureStore](#configurestoreoptions--store)
 - [mergeGenerators](#mergegeneratorsgenerator--generator)
 - [createAction](#createactionname-formatpayload--payload--action)
@@ -208,11 +208,11 @@ Creates pack of redux components with default generator
     }
 ```
 
-### createReduxPack.withGenerator(packInfo, generator) => injectedPack
+### pack.withGenerator(packInfo, generator) => injectedPack
 
 Creates pack of redux components using default generator injected with provided custom generator, **results of generators with same name as default packs parts will be merged**.
 
-**createReduxPack.withGenerator**<State, PayloadRun, PayloadMain, Gen>
+**pack.withGenerator**<State, PayloadRun, PayloadMain, Gen>
 
 - **State** = Record<string, any> - appended State of reducer
 - **PayloadRun** = void - type of run Payload
@@ -231,10 +231,10 @@ Accepts an object containing fields with functions that accept a packInfo parame
     anotherField: () => 'anotherField',  
   }
 
-  const customPack = createReduxPack.withGenerator({
-        name: 'CustomPack',
-        reducerName: 'Reducer',
-  }, generator);
+  const customPack = createReduxPack({
+    name: 'CustomPack',
+    reducerName: 'Reducer',
+  }).withGenerator(generator);
 
   console.log(customPack.anotherField) // 'anotherField'
 
@@ -363,8 +363,6 @@ Call returns action that can be dispatched to reset store state to initial.
 ## ToDo list
 - [x] Expose merge for generators
 - [x] Merge results of merged reducers
-- [ ] Add possibility to expand functionality with plugins
-- [ ] Injection to Root Reducer for global actions
+- [ ] Resolve payloadMap to support nested payload object
 - [ ] PayloadMap for run and error actions
-- [ ] Resolve payloadMap key to support nested payload object
-- [ ] Support CreateSelector nested objects
+- [ ] Injection to Root Reducer for global actions

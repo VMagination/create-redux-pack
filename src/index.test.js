@@ -13,14 +13,10 @@ test('pack exists', () => {
   expect(createReduxPack).toBeDefined();
 });
 
-test('check logger enables', () => {
+test('check logger toggle', () => {
   expect(createReduxPack.isLoggerOn).toEqual(false);
   enableLogger();
   expect(createReduxPack.isLoggerOn).toEqual(true);
-});
-
-test('check logger disables', () => {
-  enableLogger();
   disableLogger();
   expect(createReduxPack.isLoggerOn).toEqual(false);
 });
@@ -58,12 +54,11 @@ const packWithPayloadModify = createReduxPack({
   },
 });
 
-const packWithGenerator = createReduxPack.withGenerator(
-  {
-    name: 'PackWithGenerator',
-    reducerName: reducerName + 4,
-    resultInitial: [],
-  },
+const packWithGenerator = createReduxPack({
+  name: 'PackWithGenerator',
+  reducerName: reducerName + 4,
+  resultInitial: [],
+}).withGenerator(
   mergeGenerators(
     {
       initialState: ({ name }) => ({
@@ -97,7 +92,7 @@ const packWithGenerator = createReduxPack.withGenerator(
     },
     {
       reducer: ({ name }) => ({
-        [createReduxPack.getRunName(name)]: (state) => ({
+        [createReduxPack.getRunName(name)]: () => ({
           somethingElse: 'as cool',
         }),
       }),
@@ -517,4 +512,8 @@ test('check getRootReducer', () => {
   expect(createReduxPack._initialState[reducerName + 1].sad).toBeDefined();
   expect(createReduxPack._initialState[reducerName + 1].sad).toEqual(0);
   expect(Object.keys(createReduxPack._initialState[reducerName + 1])).toHaveLength(4);
+});
+
+test('check errors', () => {
+  expect(() => createReduxPack.withGenerator()).toThrowError('CRPack received invalid package info');
 });

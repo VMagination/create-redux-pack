@@ -28,12 +28,19 @@ const RESET_ACTION_TYPE = '__CREATE_REDUX_PACK_RESET_ACTION__';
 
 const loggerMatcher: any = () => true;
 
-const formatParams = <S = Record<string, any>, PayloadMain = Record<string, any>>({
-  name: paramsName,
-  ...params
-}: CreateReduxPackParams<S, PayloadMain>): CreateReduxPackParams<S, PayloadMain> => {
-  const name = `${paramsName}_${Math.random().toString(36).substr(2, 9)}`;
-  return { name, ...params };
+const formatComplete: unique symbol = Symbol('format complete');
+
+const formatParams = <S = Record<string, any>, PayloadMain = Record<string, any>>(
+  rawParams: CreateReduxPackParams<S, PayloadMain>,
+): CreateReduxPackParams<S, PayloadMain> & Partial<Record<typeof formatComplete, boolean>> => {
+  try {
+    const { name: paramsName, reducerName = 'UnspecifiedReducer', ...params } = rawParams;
+    if (formatComplete in params) return rawParams;
+    const name = `${paramsName}_${Math.random().toString(36).substr(2, 9)}`;
+    return { name, reducerName, [formatComplete]: true, ...params };
+  } catch (e) {
+    throw Error('CRPack received invalid package info');
+  }
 };
 
 const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
@@ -43,8 +50,16 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
     const info = formatParams(infoRaw);
     const { reducerName } = info;
 
-    const generatedReducerPart = createReduxPack._generator.reducer<S, PayloadMain, PayloadRun>(info);
-    const generatedInitialStatePart = createReduxPack._generator.initialState<S, PayloadMain, PayloadRun>(info);
+    const generatedReducerPart = createReduxPack._generator.reducer<
+      S,
+      PayloadMain,
+      CreateReduxPackReducer<PayloadMain, PayloadRun>
+    >(info);
+    const generatedInitialStatePart = createReduxPack._generator.initialState<
+      S,
+      PayloadMain,
+      CreateReduxPackInitialState
+    >(info);
 
     createReduxPack.injectReducerInto(reducerName, generatedReducerPart, generatedInitialStatePart);
 
@@ -53,7 +68,7 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
       {} as { [P in keyof typeof createReduxPack.generator]: ReturnType<CreateReduxPackGeneratorBlock> },
     );*/
 
-    return {
+    const pack = {
       name: info.name,
       stateNames: createReduxPack._generator.stateNames<S, PayloadMain, CreateReduxPackStateNames<S>>(info),
       actionNames: createReduxPack._generator.actionNames<S, PayloadMain, CreateReduxPackActionNames>(info),
@@ -61,11 +76,17 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
         info,
       ),
       selectors: createReduxPack._generator.selectors<S, PayloadMain, CreateReduxPackSelectors<S>>(info),
-      initialState: createReduxPack._generator.initialState<S, PayloadMain, CreateReduxPackInitialState>(info),
-      reducer: createReduxPack._generator.reducer<S, PayloadMain, CreateReduxPackReducer<PayloadMain, PayloadRun>>(
-        info,
-      ),
+      initialState: generatedInitialStatePart,
+      reducer: generatedReducerPart,
     };
+
+    return Object.assign(pack, {
+      withGenerator: <Gen = Record<string, any>>(
+        generator: {
+          [P in Exclude<keyof Gen, 'name'>]: (info: CreateReduxPackParams<S, PayloadMain>) => Gen[P];
+        },
+      ) => createReduxPack.withGenerator<S, PayloadRun, PayloadMain, Gen>(info, generator),
+    });
   },
   {
     _reducers: {},

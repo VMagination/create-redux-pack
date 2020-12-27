@@ -138,6 +138,9 @@ export type CreateReduxPackType = {
   freezeReducerUpdates: () => void;
   releaseReducerUpdates: () => void;
   resetAction: () => Action<any>;
+  /*
+   * @deprecated use pack's withGenerator(gen) method instead
+   */
   withGenerator: <S, PayloadRun, PayloadMain, Gen>(
     info: CreateReduxPackParams<S, PayloadMain>,
     generator: {
