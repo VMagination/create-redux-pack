@@ -7,7 +7,7 @@ export type CreateReduxPackParams<S, PayloadMain> = {
   resultInitial?: any;
   reducerName: string;
   formatPayload?: (data: PayloadMain) => S;
-  payloadMap?: CreateReduxPackPayloadMap<S>;
+  payloadMap?: CreateReduxPackPayloadMap<S, PayloadMain>;
 };
 
 export type Action<T> = {
@@ -44,12 +44,12 @@ export type CreateReduxPackReducer<PayloadMain = void, PayloadRun = Record<strin
 
 export type CreateReduxPackInitialState = Record<string, any>;
 
-export type CreateReduxPackPayloadMap<S> = {
+export type CreateReduxPackPayloadMap<S, Payload = any> = {
   [P in keyof S]?: {
-    initial: any;
-    key: string;
+    initial: S[P];
+    key?: keyof Payload;
     fallback?: any;
-    formatSelector?: <DT = any>(data: DT) => any;
+    formatSelector?: (data: any) => any;
     modifyValue?: (payloadValue: any, prevStateValue?: S[P]) => S[P];
   };
 };

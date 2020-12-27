@@ -1,6 +1,69 @@
-import { createReducer, createAction as createAction$1, configureStore as configureStore$1 } from '@reduxjs/toolkit';
+import { createAction as createAction$1, createReducer, configureStore as configureStore$1 } from '@reduxjs/toolkit';
 import { combineReducers } from 'redux';
 import { createSelector as createSelector$1 } from 'reselect';
+
+const mergeGenerators = (...generators) => {
+  try {
+    const keyList = [...new Set(generators.reduce((accum, gen) => [...accum, ...Object.keys(gen)], []))];
+
+    let reducer = () => ({});
+
+    if (keyList.includes('reducer')) {
+      reducer = info => {
+        const reducers = generators.filter(gen => gen.hasOwnProperty('reducer')).map(gen => gen.reducer(info)).filter(gen => gen && typeof gen === 'object' && gen?.constructor?.name === 'Object');
+        const reducersKeys = [...new Set(reducers.reduce((accum, reducer) => [...accum, ...Object.keys(reducer)], []))];
+        return reducersKeys.reduce((accum, reducerKey) => ({ ...accum,
+          [reducerKey]: (state = {}, action) => {
+            const currentReducers = reducers.filter(reducer => reducer.hasOwnProperty(reducerKey));
+            return currentReducers.reduce((innerAccum, currentReducer) => {
+              let toReturn = currentReducer[reducerKey](state, action, true);
+              const toReturnKeys = Object.keys(toReturn);
+
+              if (toReturnKeys.length >= Object.keys(state).length) {
+                console.warn('CRPack: mergeGenerators received a reducer case with state directly added in result, to improve performance please use createReducerCase and prevent previous state from spreading into result, found in', reducerKey);
+                toReturn = toReturnKeys.reduce((accum, key) => ({ ...accum,
+                  ...(!state[key] || toReturn[key] !== state[key] ? {
+                    [key]: toReturn[key]
+                  } : {})
+                }), {});
+              }
+
+              return { ...innerAccum,
+                ...toReturn
+              };
+            }, { ...state
+            });
+          }
+        }), {});
+      };
+    }
+
+    const result = keyList.reduce((accum, key) => ({ ...accum,
+      [key]: info => {
+        return generators.filter(gen => gen.hasOwnProperty(key)).reduce((accum, gen) => ({ ...accum,
+          ...gen[key](info)
+        }), {});
+      }
+    }), {});
+    return { ...result,
+      reducer
+    };
+  } catch (e) {
+    throw new Error('CRPack: mergeGenerators received invalid generators');
+  }
+};
+
+const createReducerCase = reducerCase => {
+  return (state, action, isMerging) => ({ ...(isMerging ? {} : state),
+    ...reducerCase(state, action)
+  });
+};
+
+const createAction = (name, formatPayload) => createAction$1(name, data => ({
+  payload: formatPayload ? formatPayload(data) : data
+}));
+
+const createSelector = (reducerName, stateKey) => createSelector$1(state => state[reducerName], state => state[stateKey]);
 
 const RESET_ACTION_TYPE = '__CREATE_REDUX_PACK_RESET_ACTION__';
 
@@ -202,7 +265,7 @@ const createReduxPack = Object.assign(infoRaw => {
       [createReduxPack.getSuccessName(name)]: createReducerCase((state, {
         payload
       }) => ({ ...Object.keys(payloadMap).reduce((accum, key) => {
-          const param = payloadMap[key]?.key;
+          const param = payloadMap[key]?.key || key;
           const modification = payloadMap[key]?.modifyValue;
           const payloadValue = payload && param ? payload[param] ?? payloadMap[key]?.fallback : payloadMap[key]?.fallback;
           return { ...accum,
@@ -245,18 +308,6 @@ const disableLogger = () => {
   }
 };
 
-const createSelector = (reducerName, stateKey) => createSelector$1(state => state[reducerName], state => state[stateKey]);
-
-const createAction = (name, formatPayload) => createAction$1(name, data => ({
-  payload: formatPayload ? formatPayload(data) : data
-}));
-
-const createReducerCase = reducerCase => {
-  return (state, action, isMerging) => ({ ...(isMerging ? {} : state),
-    ...reducerCase(state, action)
-  });
-};
-
 const configureStore = options => {
   const store = configureStore$1({ ...options,
     reducer: createReduxPack.getRootReducer()
@@ -266,70 +317,7 @@ const configureStore = options => {
 };
 
 const createReducerOn = (reducerName, initialState, actionMap) => {
-  /*createReduxPack.reducers = {
-    ...createReduxPack.reducers,
-    [reducerName]: createReduxPack.reducers[reducerName]
-      ? { ...createReduxPack.reducers[reducerName], ...actionMap }
-      : { ...actionMap },
-  } as typeof createReduxPack.reducers;
-      createReduxPack.initialState = {
-    ...createReduxPack.initialState,
-    [reducerName]: createReduxPack.initialState[reducerName]
-      ? { ...createReduxPack.initialState[reducerName], ...initialState }
-      : { ...initialState },
-  };*/
   createReduxPack.injectReducerInto(reducerName || 'UnspecifiedReducer', actionMap || {}, initialState || {});
-};
-
-const mergeGenerators = (...generators) => {
-  try {
-    const keyList = [...new Set(generators.reduce((accum, gen) => [...accum, ...Object.keys(gen)], []))];
-
-    let reducer = () => ({});
-
-    if (keyList.includes('reducer')) {
-      reducer = info => {
-        const reducers = generators.filter(gen => gen.hasOwnProperty('reducer')).map(gen => gen.reducer(info)).filter(gen => gen && typeof gen === 'object' && gen?.constructor?.name === 'Object');
-        const reducersKeys = [...new Set(reducers.reduce((accum, reducer) => [...accum, ...Object.keys(reducer)], []))];
-        return reducersKeys.reduce((accum, reducerKey) => ({ ...accum,
-          [reducerKey]: (state = {}, action) => {
-            const currentReducers = reducers.filter(reducer => reducer.hasOwnProperty(reducerKey));
-            return currentReducers.reduce((innerAccum, currentReducer) => {
-              let toReturn = currentReducer[reducerKey](state, action, true);
-              const toReturnKeys = Object.keys(toReturn);
-
-              if (toReturnKeys.length >= Object.keys(state).length) {
-                console.warn('CRPack: mergeGenerators received a reducer case with state directly added in result, to improve performance please use createReducerCase and prevent previous state from spreading into result, found in', reducerKey);
-                toReturn = toReturnKeys.reduce((accum, key) => ({ ...accum,
-                  ...(!state[key] || toReturn[key] !== state[key] ? {
-                    [key]: toReturn[key]
-                  } : {})
-                }), {});
-              }
-
-              return { ...innerAccum,
-                ...toReturn
-              };
-            }, { ...state
-            });
-          }
-        }), {});
-      };
-    }
-
-    const result = keyList.reduce((accum, key) => ({ ...accum,
-      [key]: info => {
-        return generators.filter(gen => gen.hasOwnProperty(key)).reduce((accum, gen) => ({ ...accum,
-          ...gen[key](info)
-        }), {});
-      }
-    }), {});
-    return { ...result,
-      reducer
-    };
-  } catch (e) {
-    throw new Error('CRPack: mergeGenerators received invalid generators');
-  }
 };
 
 export default createReduxPack;

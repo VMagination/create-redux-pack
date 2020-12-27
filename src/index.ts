@@ -6,7 +6,6 @@ import {
 } from '@reduxjs/toolkit';
 import {
   Action,
-  CreateReduxPackAction,
   CreateReduxPackActionMap,
   CreateReduxPackActionNames,
   CreateReduxPackActions,
@@ -23,6 +22,7 @@ import {
 } from './types';
 import { combineReducers, Reducer } from 'redux';
 import { createSelector as createReSelector, OutputSelector } from 'reselect';
+import { createAction, createReducerCase, createSelector, mergeGenerators } from './utils';
 
 const RESET_ACTION_TYPE = '__CREATE_REDUX_PACK_RESET_ACTION__';
 
@@ -209,7 +209,7 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
       selectors: <S, PayloadMain>({
         name,
         reducerName,
-        payloadMap = {} as CreateReduxPackPayloadMap<S>,
+        payloadMap = {} as CreateReduxPackPayloadMap<S, PayloadMain>,
       }: CreateReduxPackParams<S, PayloadMain>) => {
         const getReducerState = (state: any) => state[reducerName];
         return {
@@ -238,7 +238,7 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
       initialState: <S, PayloadMain>({
         name,
         resultInitial = null,
-        payloadMap = {} as CreateReduxPackPayloadMap<S>,
+        payloadMap = {} as CreateReduxPackPayloadMap<S, PayloadMain>,
       }: CreateReduxPackParams<S, PayloadMain>) => ({
         [createReduxPack.getErrorName(name)]: null,
         [createReduxPack.getLoadingName(name)]: false,
@@ -254,7 +254,7 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
       }),
       stateNames: <S, PayloadMain>({
         name,
-        payloadMap = {} as CreateReduxPackPayloadMap<S>,
+        payloadMap = {} as CreateReduxPackPayloadMap<S, PayloadMain>,
       }: CreateReduxPackParams<S, PayloadMain>) => ({
         isLoading: createReduxPack.getLoadingName(name),
         error: createReduxPack.getErrorName(name),
@@ -271,7 +271,7 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
       }),
       reducer: <S, PayloadMain, PayloadRun>({
         name,
-        payloadMap = {} as CreateReduxPackPayloadMap<S>,
+        payloadMap = {} as CreateReduxPackPayloadMap<S, PayloadMain>,
       }: CreateReduxPackParams<S, PayloadMain>): CreateReduxPackReducer<PayloadMain, PayloadRun> => ({
         [createReduxPack.getRunName(name)]: createReducerCase(() => ({
           [createReduxPack.getErrorName(name)]: null,
@@ -280,7 +280,7 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
         [createReduxPack.getSuccessName(name)]: createReducerCase((state, { payload }) => ({
           ...(Object.keys(payloadMap) as Array<keyof S>).reduce(
             (accum, key) => {
-              const param = payloadMap[key]?.key;
+              const param = payloadMap[key]?.key || key;
               const modification = payloadMap[key]?.modifyValue;
               const payloadValue =
                 payload && param ? payload[param] ?? payloadMap[key]?.fallback : payloadMap[key]?.fallback;
@@ -318,41 +318,18 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
   },
 );
 
-const enableLogger = () => {
+const enableLogger = (): void => {
   if (!createReduxPack.isLoggerOn) {
     createReduxPack.isLoggerOn = true;
     createReduxPack.updateReducer();
   }
 };
 
-const disableLogger = () => {
+const disableLogger = (): void => {
   if (createReduxPack.isLoggerOn) {
     createReduxPack.isLoggerOn = false;
     createReduxPack.updateReducer();
   }
-};
-
-const createSelector = <T>(reducerName: string, stateKey: string) =>
-  createReSelector<any, any, T>(
-    (state) => state[reducerName],
-    (state) => state[stateKey],
-  );
-
-const createAction = <Payload, Result = Payload>(
-  name: string,
-  formatPayload?: (data: Payload) => Result,
-): CreateReduxPackAction<Payload, Result | Payload> =>
-  createToolkitAction(name, (data: Payload) => ({
-    payload: formatPayload ? formatPayload(data) : data,
-  }));
-
-const createReducerCase = <S = Record<string, any>>(
-  reducerCase: (state: S, action: Action<any>) => S,
-): ((state: S, action: Action<any>, isMerging?: boolean) => S) => {
-  return (state: S, action: Action<any>, isMerging?: boolean) => ({
-    ...(isMerging ? {} : state),
-    ...reducerCase(state, action),
-  });
 };
 
 const configureStore: (
@@ -371,89 +348,7 @@ const createReducerOn = <S>(
   initialState: S,
   actionMap: Record<string, (state: S, action: Action<any>) => S>,
 ): void => {
-  /*createReduxPack.reducers = {
-    ...createReduxPack.reducers,
-    [reducerName]: createReduxPack.reducers[reducerName]
-      ? { ...createReduxPack.reducers[reducerName], ...actionMap }
-      : { ...actionMap },
-  } as typeof createReduxPack.reducers;
-
-  createReduxPack.initialState = {
-    ...createReduxPack.initialState,
-    [reducerName]: createReduxPack.initialState[reducerName]
-      ? { ...createReduxPack.initialState[reducerName], ...initialState }
-      : { ...initialState },
-  };*/
-
   createReduxPack.injectReducerInto(reducerName || 'UnspecifiedReducer', actionMap || {}, initialState || {});
-};
-
-const mergeGenerators = <T = Record<string, any>>(...generators: Record<string, any>[]): T => {
-  try {
-    const keyList = [...new Set(generators.reduce<string[]>((accum, gen) => [...accum, ...Object.keys(gen)], []))];
-    let reducer: (info: CreateReduxPackParams<any, any>) => Record<string, any> = () => ({});
-    if (keyList.includes('reducer')) {
-      reducer = (info) => {
-        const reducers = generators
-          .filter((gen) => gen.hasOwnProperty('reducer'))
-          .map((gen) => gen.reducer(info))
-          .filter((gen) => gen && typeof gen === 'object' && gen?.constructor?.name === 'Object');
-        const reducersKeys = [
-          ...new Set(reducers.reduce<string[]>((accum, reducer) => [...accum, ...Object.keys(reducer)], [])),
-        ];
-        return reducersKeys.reduce(
-          (accum, reducerKey) => ({
-            ...accum,
-            [reducerKey]: (state: Record<string, any> = {}, action: Action<any>) => {
-              const currentReducers = reducers.filter((reducer) => reducer.hasOwnProperty(reducerKey));
-              return currentReducers.reduce(
-                (innerAccum, currentReducer) => {
-                  let toReturn = currentReducer[reducerKey](state, action, true);
-                  const toReturnKeys = Object.keys(toReturn);
-                  if (toReturnKeys.length >= Object.keys(state).length) {
-                    console.warn(
-                      'CRPack: mergeGenerators received a reducer case with state directly added in result, to improve performance please use createReducerCase and prevent previous state from spreading into result, found in',
-                      reducerKey,
-                    );
-                    toReturn = toReturnKeys.reduce(
-                      (accum, key) => ({
-                        ...accum,
-                        ...(!state[key] || toReturn[key] !== state[key] ? { [key]: toReturn[key] } : {}),
-                      }),
-                      {},
-                    );
-                  }
-                  return {
-                    ...innerAccum,
-                    ...toReturn,
-                  };
-                },
-                { ...state },
-              );
-            },
-          }),
-          {},
-        );
-      };
-    }
-    const result = keyList.reduce(
-      (accum, key) => ({
-        ...accum,
-        [key]: (info: CreateReduxPackParams<any, any>) => {
-          return generators
-            .filter((gen) => gen.hasOwnProperty(key))
-            .reduce((accum, gen) => ({ ...accum, ...gen[key](info) }), {});
-        },
-      }),
-      {} as Record<string, any>,
-    );
-    return ({
-      ...result,
-      reducer,
-    } as unknown) as T;
-  } catch (e) {
-    throw new Error('CRPack: mergeGenerators received invalid generators');
-  }
 };
 
 export {

@@ -114,10 +114,10 @@ Creates pack of redux components with default generator
 
 { [key of State]: options }
 
-- **key** - *string*, Required, key of success Payload that will be used to get value for current field
-- **initial** - *any*, Required, initial value of this field
-- **fallback** - *any*, Optional, value that will replace current field value in case falsy payload will be provided to success action. It's just a guard to prevent potential crashes of bad payload.
-- **formatSelector** - *<DT = any>(data: DT) => any*, Optional, format for selector of this field.
+- **key** - *key of PayloadMain*, Optional, key of success Payload that will be used to get a value of current field, fallbacks to State key
+- **initial** - *State[key of field]*, Required, initial value of this field
+- **fallback** - *any*, Optional, value that will replace current field value in case falsy payload will be provided to success action. It's just a guard to prevent potential crashes of bad payload, if not defined fallbacks to null.
+- **formatSelector** - *(data: any) => any*, Optional, format for a selector of this field.
 - **modifyValue** - *(value: any, prevValue?: State[key of field]) => State[key of field]*, Optional, used to override / modify values of state of others packs. If provided, key will not be changed and when current success case will be triggered, value of another selected package will update.
 
 #### Pack contains

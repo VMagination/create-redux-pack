@@ -39,7 +39,6 @@ const packWithPayload = createReduxPack({
       initial: null,
     },
     item2: {
-      key: 'passedItem2',
       initial: { a: 0 },
       fallback: { a: 10 },
       formatSelector: (item) => item.a,
@@ -323,7 +322,6 @@ test('check pack with payloadMap', () => {
   expect(packWithPayload.stateNames.item1).toBeDefined();
   expect(packWithPayload.stateNames.passedItem1).not.toBeDefined();
   expect(packWithPayload.stateNames.item2).toBeDefined();
-  expect(packWithPayload.stateNames.passedItem2).not.toBeDefined();
   expect(packWithPayload.initialState[packWithPayload.stateNames.isLoading]).toBeDefined();
   expect(packWithPayload.initialState[packWithPayload.stateNames.error]).toBeDefined();
   expect(packWithPayload.initialState[packWithPayload.stateNames.result]).toBeDefined();
@@ -344,11 +342,11 @@ test('check pack with payloadMap', () => {
   expect(packWithPayload.selectors.item1(state())).toEqual(null);
   expect(packWithPayload.selectors.item2(state())).toEqual(0);
 
-  createReduxPack._store.dispatch(packWithPayload.actions.success({ passedItem1: 'setItem1', passedItem2: { a: 2 } }));
+  createReduxPack._store.dispatch(packWithPayload.actions.success({ passedItem1: 'setItem1', item2: { a: 2 } }));
 
   expect(packWithPayload.selectors.isLoading(state())).toEqual(false);
   expect(packWithPayload.selectors.error(state())).toEqual(null);
-  expect(packWithPayload.selectors.result(state())).toEqual({ passedItem1: 'setItem1', passedItem2: { a: 2 } });
+  expect(packWithPayload.selectors.result(state())).toEqual({ passedItem1: 'setItem1', item2: { a: 2 } });
   expect(packWithPayload.selectors.item1(state())).toEqual('setItem1');
   expect(packWithPayload.selectors.item2(state())).toEqual(2);
 
@@ -356,7 +354,7 @@ test('check pack with payloadMap', () => {
 
   expect(packWithPayload.selectors.isLoading(state())).toEqual(true);
   expect(packWithPayload.selectors.error(state())).toEqual(null);
-  expect(packWithPayload.selectors.result(state())).toEqual({ passedItem1: 'setItem1', passedItem2: { a: 2 } });
+  expect(packWithPayload.selectors.result(state())).toEqual({ passedItem1: 'setItem1', item2: { a: 2 } });
   expect(packWithPayload.selectors.item1(state())).toEqual('setItem1');
   expect(packWithPayload.selectors.item2(state())).toEqual(2);
 
@@ -380,8 +378,8 @@ test('check pack with payloadMap', () => {
 test('check pack with payloadMap Modify', () => {
   const state = () => createReduxPack._store.getState();
 
-  createReduxPack._store.dispatch(packWithPayload.actions.success({ passedItem1: 'setItem1', passedItem2: { a: 2 } }));
-  expect(packWithPayload.selectors.result(state())).toEqual({ passedItem1: 'setItem1', passedItem2: { a: 2 } });
+  createReduxPack._store.dispatch(packWithPayload.actions.success({ passedItem1: 'setItem1', item2: { a: 2 } }));
+  expect(packWithPayload.selectors.result(state())).toEqual({ passedItem1: 'setItem1', item2: { a: 2 } });
   expect(packWithPayload.selectors.item1(state())).toEqual('setItem1');
   expect(packWithPayload.selectors.item2(state())).toEqual(2);
 
