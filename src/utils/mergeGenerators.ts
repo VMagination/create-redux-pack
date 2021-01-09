@@ -1,6 +1,8 @@
 import { Action, CreateReduxPackParams } from '../types';
 
-export const mergeGenerators = <T = Record<string, any>>(...generators: Record<string, any>[]): T => {
+export const mergeGenerators = <T = Record<string, any>, S = Record<string, any>, PayloadMain = Record<string, any>>(
+  ...generators: Record<string, (info: CreateReduxPackParams<S, PayloadMain>) => any>[]
+): T => {
   try {
     const keyList = [...new Set(generators.reduce<string[]>((accum, gen) => [...accum, ...Object.keys(gen)], []))];
     let reducer: (info: CreateReduxPackParams<any, any>) => Record<string, any> = () => ({});

@@ -11,6 +11,7 @@ import {
   CreateReduxPackParams,
   CreateReduxPackPayloadMap,
   CreateReduxPackReducer,
+  CreateReduxPackReturnType,
   CreateReduxPackSelectors,
   CreateReduxPackStateNames,
   CreateReduxPackType,
@@ -36,9 +37,7 @@ import {
 const loggerMatcher: any = () => true;
 
 const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
-  <S = Record<string, any>, PayloadRun = void, PayloadMain = Record<string, any>>(
-    infoRaw: CreateReduxPackParams<S, PayloadMain>,
-  ) => {
+  <S = Record<string, any>, PayloadRun = void, PayloadMain = any>(infoRaw: CreateReduxPackParams<S, PayloadMain>) => {
     const info = formatParams(infoRaw);
     const { reducerName } = info;
 
@@ -73,7 +72,7 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
           [P in Exclude<keyof Gen, 'name'>]: (info: CreateReduxPackParams<S, PayloadMain>) => Gen[P];
         },
       ) => createReduxPack.withGenerator<S, PayloadRun, PayloadMain, Gen>(info, generator),
-    });
+    }) as CreateReduxPackReturnType<S, PayloadRun, PayloadMain>;
   },
   {
     _reducers: {},
@@ -138,7 +137,7 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
     } => {
       const info = formatParams(infoRaw);
       const { reducerName } = info;
-      const mergedGen = mergeGenerators(createReduxPack._generator, generator);
+      const mergedGen = mergeGenerators<any, S, PayloadMain>(createReduxPack._generator, generator);
       const pack = {
         ...Object.keys(mergedGen).reduce(
           (accum, key) => ({ ...accum, [key]: mergedGen[key](info) }),
@@ -319,6 +318,58 @@ const createReducerOn = <S>(
 ): void => {
   createReduxPack.injectReducerInto(reducerName || 'UnspecifiedReducer', actionMap || {}, initialState || {});
 };
+
+const wasd = createReduxPack({
+  name: 'PackWithGenerator',
+  reducerName: 'asd' + 4,
+  resultInitial: [],
+}).withGenerator(
+  mergeGenerators(
+    {
+      initialState: ({ name }) => ({
+        [name + 'Flag']: false,
+      }),
+      stateNames: ({ name }) => ({
+        flag: name + 'Flag',
+      }),
+      actionNames: ({ name }) => ({
+        reset: name + 'Reset',
+      }),
+      actions: ({ name }) => ({
+        reset: createAction(name + 'Reset'),
+      }),
+      reducer: ({ name }) => ({
+        [createReduxPack.getRunName(name)]: createReducerCase(() => ({
+          [createReduxPack.getLoadingName(name)]: false,
+          somethingCool: 'right here',
+        })),
+        [name + 'Reset']: createReducerCase(() => ({
+          [createReduxPack.getResultName(name)]: [],
+          [name + 'Flag']: true,
+        })),
+      }),
+      selectors: ({ reducerName, name }) => ({
+        flag: createSelector(reducerName, name + 'Flag'),
+      }),
+      newParam: () => ({
+        anything: 'here',
+      }),
+    },
+    {
+      reducer: ({ name }) => ({
+        [createReduxPack.getRunName(name)]: () => ({
+          somethingElse: 'as cool',
+        }),
+      }),
+      initialState: () => ({
+        somethingElse: 'not cool',
+        somethingCool: 'not quite',
+      }),
+    },
+  ),
+);
+
+wasd.name;
 
 export {
   createSelector,

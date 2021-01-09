@@ -1,13 +1,14 @@
 import nodeResolve from '@rollup/plugin-node-resolve'
 import babel from '@rollup/plugin-babel'
-import replace from '@rollup/plugin-replace'
+// import replace from '@rollup/plugin-replace'
 import typescript from 'rollup-plugin-typescript2'
-import { terser } from 'rollup-plugin-terser'
+import commonjs from 'rollup-plugin-commonjs';
+// import { terser } from 'rollup-plugin-terser'
 
 import pkg from './package.json'
 
 const extensions = ['.ts']
-const noDeclarationFiles = { compilerOptions: { declaration: false } }
+// const noDeclarationFiles = { compilerOptions: { declaration: false } }
 
 const babelRuntimeVersion = pkg.devDependencies['@babel/runtime'].replace(
   /^[^0-9]*/,
@@ -35,17 +36,21 @@ export default [
       nodeResolve({
         extensions,
       }),
+      commonjs({
+        include: /node_modules/,
+      }),
       typescript({ useTsconfigDeclarationDir: true }),
       babel({
         extensions,
         plugins: [
           ['@babel/plugin-transform-runtime', { version: babelRuntimeVersion }],
         ],
+        presets: ['@babel/preset-env'],
         babelHelpers: "runtime",
       }),
     ],
   },
-
+/*
   // ES
   {
     input: 'src/index.ts',
@@ -153,5 +158,5 @@ export default [
         },
       }),
     ],
-  },
+  },*/
 ]

@@ -5,7 +5,7 @@ export declare type CreateReduxPackParams<S, PayloadMain> = {
     name: string;
     resultInitial?: any;
     reducerName: string;
-    formatPayload?: (data: PayloadMain) => S;
+    formatPayload?: (data: PayloadMain) => any;
     payloadMap?: CreateReduxPackPayloadMap<S>;
 };
 export declare type Action<T> = {
@@ -74,6 +74,12 @@ export declare type CreateReduxPackReturnType<S, PayloadRun, PayloadMain> = {
     reducer: CreateReduxPackReducer<PayloadMain, PayloadRun>;
     selectors: CreateReduxPackSelectors<S>;
     name: string;
+} & {
+    withGenerator: <Gen = Record<string, any>>(generator: {
+        [P in Exclude<keyof Gen, 'name'>]: (info: CreateReduxPackParams<S, PayloadMain>) => Gen[P];
+    }) => {
+        [P in keyof CreateReduxPackCombinedGenerators<Gen, S, PayloadRun, PayloadMain>]: CreateReduxPackCombinedGenerators<Gen, S, PayloadRun, PayloadMain>[P];
+    };
 };
 export declare type CreateReduxPackFn = <S = Record<string, any>, PayloadRun = void, PayloadMain = Record<string, any>>(info: CreateReduxPackParams<S, PayloadMain>) => CreateReduxPackReturnType<S, PayloadRun, PayloadMain>;
 export declare type CreateReduxPackActionMap = Record<string, (state: any, action: Action<any>) => typeof state>;
