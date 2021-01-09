@@ -3,7 +3,7 @@
 <html lang="en">
 
 <head>
-    <title>Code coverage report for src/utils/createAction.ts</title>
+    <title>Code coverage report for src/utils/formatParams.ts</title>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="../../prettify.css" />
     <link rel="stylesheet" href="../../base.css" />
@@ -19,34 +19,34 @@
 <body>
 <div class='wrapper'>
     <div class='pad1'>
-        <h1><a href="../../index.html">All files</a> / <a href="index.html">src/utils</a> createAction.ts</h1>
+        <h1><a href="../../index.html">All files</a> / <a href="index.html">src/utils</a> formatParams.ts</h1>
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>3/3</span>
+                <span class='fraction'>9/9</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>2/2</span>
+                <span class='fraction'>4/4</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>2/2</span>
+                <span class='fraction'>1/1</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>2/2</span>
+                <span class='fraction'>8/8</span>
             </div>
         
             
@@ -67,26 +67,44 @@
 <a name='L8'></a><a href='#L8'>8</a>
 <a name='L9'></a><a href='#L9'>9</a>
 <a name='L10'></a><a href='#L10'>10</a>
-<a name='L11'></a><a href='#L11'>11</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-yes">8x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">30x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { CreateReduxPackAction } from '../types';
-import { createAction as createToolkitAction } from '@reduxjs/toolkit';
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { CreateReduxPackParams } from '../types';
 &nbsp;
-export const createAction = &lt;Payload, Result = Payload&gt;(
-  name: string,
-  formatPayload?: (data: Payload) =&gt; Result,
-): CreateReduxPackAction&lt;Payload, Result | Payload&gt; =&gt;
-  createToolkitAction(name, (data: Payload) =&gt; ({
-    payload: formatPayload ? formatPayload(data) : data,
-  }));
+const formatComplete: unique symbol = Symbol('format complete');
+&nbsp;
+export const formatParams = &lt;S = Record&lt;string, any&gt;, PayloadMain = Record&lt;string, any&gt;&gt;(
+  rawParams: CreateReduxPackParams&lt;S, PayloadMain&gt;,
+): CreateReduxPackParams&lt;S, PayloadMain&gt; &amp; Partial&lt;Record&lt;typeof formatComplete, boolean&gt;&gt; =&gt; {
+  try {
+    const { name: paramsName = 'NamelessPack', reducerName = 'UnspecifiedReducer', ...params } = rawParams;
+    if (formatComplete in params) return rawParams;
+    const name = `[${paramsName}]: CRPack-${Math.random().toString(36).substr(2, 9)}`;
+    return { name, reducerName, [formatComplete]: true, ...params };
+  } catch (e) {
+    throw Error('CRPack received invalid package info');
+  }
+};
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->

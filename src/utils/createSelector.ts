@@ -1,7 +1,10 @@
 import { createSelector as createReSelector, OutputSelector } from 'reselect';
 
-export const createSelector = <T>(reducerName: string, stateKey: string): OutputSelector<any, T, (res: any) => T> =>
-  createReSelector<any, any, T>(
-    (state) => state[reducerName],
-    (state) => state[stateKey],
-  );
+export const createSelector = <RT, DT = any>(
+  reducerOrSource: string | ((state: any) => DT),
+  keyOrFormat: string | ((state: DT) => RT),
+): OutputSelector<any, RT, (res: DT) => RT> => {
+  const source = typeof reducerOrSource === 'string' ? (state: any) => state[reducerOrSource] : reducerOrSource;
+  const selection = typeof keyOrFormat === 'string' ? (state: any) => state[keyOrFormat] : keyOrFormat;
+  return createReSelector<any, DT, RT>(source, selection);
+};

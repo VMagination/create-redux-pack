@@ -87,9 +87,8 @@ To add logic of a pack it is required to inject its reducer and initialState int
 - [createReducerCase](#createreducercasestate-action--partial)
 - [createReducerOn](#createreduceronreducername-actionmap-initialstate--void)
 - [loggerToggle](#enablelogger-and-disablelogger)
-- [freezeReducerUpdates](#createreduxpackfreezereducerupdates)
-- [releaseReducerUpdates](#createreduxpackreleasereducerupdates)
-- [createReduxPack.resetAction](#createreduxpackresetaction)
+- [toggleReducerUpdates](#createreduxpackfreezereducerupdates)
+- [resetAction](#resetaction)
 - [createReduxPack[formatNames]](#createreduxpack-name-formation)
 - [createReduxPack[informationalItems]](#createreduxpackstore)
 
@@ -112,13 +111,15 @@ Creates pack of redux components with default generator
 
 #### payloadMap
 
-{ [key of State]: options }
+{ [key of (State, anotherPackState)]: options | { [innerKey of State[key]]: options | ... }  }
 
-- **key** - *key of PayloadMain*, Optional, key of success Payload that will be used to get a value of current field, fallbacks to State key
+Accepts object with options or nested object with end section containing options, supports keys of  another pack's State.
+
+Options:
+- **key** - *key of PayloadMain*, Optional, key of success Payload that will be used to get a value of current field, fallbacks to State key, supports lodash's get ('key.innerKey[0]'), key of subsection moves payload of that section to that key
 - **initial** - *State[key of field]*, Required, initial value of this field
-- **fallback** - *any*, Optional, value that will replace current field value in case falsy payload will be provided to success action. It's just a guard to prevent potential crashes of bad payload, if not defined fallbacks to null.
-- **formatSelector** - *(data: any) => any*, Optional, format for a selector of this field.
-- **modifyValue** - *(value: any, prevValue?: State[key of field]) => State[key of field]*, Optional, used to override / modify values of state of others packs. If provided, key will not be changed and when current success case will be triggered, value of another selected package will update.
+- **fallback** - *any*, Optional, value that will replace current field value in case falsy payload will be provided to success action. It's just a guard to prevent potential crashes of bad payload.
+- **modifyValue** - *(value: any, prevValue?: State[key of field]) => State[key of field]*, Optional, used to set new value according or using previous value.
 
 #### Pack contains
 
@@ -128,6 +129,7 @@ Creates pack of redux components with default generator
     - **result** - string
     - **error** - string
     - **[key of State]** - string, fields passed to payloadMap
+    - **[key of State][innerKey of State[key]][...]** - string, fields of nested payloadMap object, returns generated key or own key if field wasn't declared.
 - **actionNames** - contains keys to actions of reducers
     - **run** - string
     - **success** - string
@@ -143,6 +145,7 @@ Creates pack of redux components with default generator
     - **error** - Selector for error
     - **result** - Selector for result
     - **[key of State]** - Selectors for each field of payloadMap
+    - **[key of State][innerKey of State[key]][...]** - Selectors for nested payloadMap object, if field wasn't declared in payloadMap it can still be accessed, failing to acquired that key will result in selector returning *undefined*.
 
 #### createReduxPack usage example
 
@@ -163,9 +166,14 @@ Creates pack of redux components with default generator
         },
         item2: {
           key: 'passedItem2',
-          initial: { a: 0 },
-          fallback: { a: 10 },
-          formatSelector: (item) => item.a,
+          innerItem1: {
+            key: 'someField.sub', 
+            item: {
+              // will take 'passedItem2.someField.sub.item' of payload
+              initial: { a: 0 },
+              fallback: { a: 10 },
+            },
+          },
         },
       },
     });
@@ -178,8 +186,15 @@ Creates pack of redux components with default generator
           key: 'passedItem1',
           initial: firstPackInitialState[firstPackStateNames.item1],
           modifyValue: (passedItem, prevValue) => prevValue + passedItem,
+        }, 
+        [firstPackStateNames.item2]: {
+          innerItem1: { // end state will contain both pack's innerItem1
+            // will take 'innerItem1' of payload
+            initial: 1,
+            modifyValue: (passedItem, prevValue) => prevValue + 1,
+            },
+          },
         },
-      },
     });
 
     const { actions, selectors, actionNames } = PackWithPayloadModify;
@@ -257,7 +272,7 @@ Main purpose of withGenerator is to inject logic into default generator
     reducer: ({ name }) => ({
       [name + 'Reset']: (state) => ({
         ...state,
-        [createReduxPack.getResultName(name)]: [],
+        [createReduxPack.getResultName(name)]: null,
       }),
     }),
   }
@@ -328,13 +343,13 @@ Stops all injections of reducers into store until activated
 
 ### createReduxPack.releaseReducerUpdates()
 
-Allows all injections of reducers into store and immediately injects all reducers added while injections were disabled.
+Allows all injections of reducers into store and immediately injects all reducers added since injections disable.
 
-> It is advised to freeze updated in the beginning of files that are being lazy loaded and release updates in their ends. This feature exists because all packages are injected separately and single bulk update will be more performant.
+> It is advised to freeze updated in the beginning of files that are being lazy loaded and release updates in their ends. This feature exists because all packages injected separately and single bulk update will be more performant.
 
-### createReduxPack.resetAction
+### resetAction
 
-Call returns action that can be dispatched to reset store state to initial.
+Call returns action that can be dispatched to reset store to initial state.
   
 ### createReduxPack name formation
 - *createReduxPack*.**getRunName(name)** - returns run action name
@@ -363,6 +378,7 @@ Call returns action that can be dispatched to reset store state to initial.
 ## ToDo list
 - [x] Expose merge for generators
 - [x] Merge results of merged reducers
-- [ ] Resolve payloadMap to support nested payload object
-- [ ] PayloadMap for run and error actions
+- [x] Resolve payloadMap to support nested payload object
+- [ ] Provide utils to work with nested payloadMap within generators
 - [ ] Injection to Root Reducer for global actions
+- [ ] PayloadMap for run and error actions

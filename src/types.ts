@@ -7,7 +7,7 @@ export type CreateReduxPackParams<S, PayloadMain> = {
   resultInitial?: any;
   reducerName: string;
   formatPayload?: (data: PayloadMain) => S;
-  payloadMap?: CreateReduxPackPayloadMap<S, PayloadMain>;
+  payloadMap?: CreateReduxPackPayloadMap<S>;
 };
 
 export type Action<T> = {
@@ -44,23 +44,32 @@ export type CreateReduxPackReducer<PayloadMain = void, PayloadRun = Record<strin
 
 export type CreateReduxPackInitialState = Record<string, any>;
 
-export type CreateReduxPackPayloadMap<S, Payload = any> = {
-  [P in keyof S]?: {
-    initial: S[P];
-    key?: keyof Payload;
-    fallback?: any;
-    formatSelector?: (data: any) => any;
-    modifyValue?: (payloadValue: any, prevStateValue?: S[P]) => S[P];
-  };
+type CRPackPayloadMapItem<T> =
+  | {
+      initial: T;
+      key?: string;
+      fallback?: T;
+      modifyValue?: (payloadValue: any, prevStateValue?: T) => T;
+    }
+  | ({
+      [K in keyof T]?: CRPackPayloadMapItem<T[K]>;
+    } & { key?: string });
+
+export type CreateReduxPackPayloadMap<S> = {
+  [P in keyof S]?: CRPackPayloadMapItem<S[P]>;
 };
+
+type CRPackStateName<S> = S extends Record<string, any>
+  ? {
+      [P in keyof S]: S[P] extends Record<string, any> ? CRPackStateName<S[P]> : string;
+    }
+  : string;
 
 export type CreateReduxPackStateNames<S> = {
   isLoading: string;
   result: string;
   error: string;
-} & {
-  [P in keyof S]: string;
-};
+} & CRPackStateName<S>;
 
 export type CreateReduxPackActionNames = { run: string; success: string; fail: string };
 
@@ -72,15 +81,17 @@ export type CreateReduxPackActions<S, PayloadRun, PayloadMain> = {
   fail: CreateReduxPackAction<string, string>;
 };
 
-export type CreateReduxPackSelector<T> = OutputSelector<any, T, any>;
+type CreateReduxPackSelector<S> = {
+  [P in keyof S]: S[P] extends Record<string, any>
+    ? OutputSelector<any, S[P], any> & CreateReduxPackSelector<S[P]>
+    : OutputSelector<any, S[P], any>;
+};
 
 export type CreateReduxPackSelectors<S> = {
   isLoading: OutputSelector<any, boolean, any>;
   error: OutputSelector<any, null | string, any>;
   result: OutputSelector<any, S, any>;
-} & {
-  [P in keyof S]: OutputSelector<any, S[P], any>;
-};
+} & CreateReduxPackSelector<S>;
 
 export type CreateReduxPackReturnType<S, PayloadRun, PayloadMain> = {
   stateNames: CreateReduxPackStateNames<S>;
@@ -105,23 +116,6 @@ export type CreateReduxPackType = {
   getResultName: (name: string) => string;
   getErrorName: (name: string) => string;
   getKeyName: (name: string, key: string) => string;
-
-  /*
-  createAction: <Payload, Result>(
-    name: string,
-    formatPayload?: (data: Payload) => Result,
-  ) => CreateReduxPackAction<Payload, Result | Payload>;
-  createSelector: <T>(reducerName: string, stateKey: string) => CreateReduxPackSelector<T>;
-  configureStore: (
-    options: Omit<Parameters<typeof configureStore>[0], 'reducer'> & {
-      reducer: Record<string, Record<string, (state: any, action: Action<any>) => typeof state>>,
-      initialState: Record<string, any>;
-    },
-  ) => ReturnType<typeof configureStore>;
-  enableLogger: () => void;
-  disableLogger: () => void;
-  */
-
   _generator: CreateReduxPackGenerator;
   _reducers: Record<string, CreateReduxPackReducer>;
   _initialState: CreateReduxPackInitialState;
@@ -137,7 +131,6 @@ export type CreateReduxPackType = {
   preventReducerUpdates: boolean;
   freezeReducerUpdates: () => void;
   releaseReducerUpdates: () => void;
-  resetAction: () => Action<any>;
   /*
    * @deprecated use pack's withGenerator(gen) method instead
    */
