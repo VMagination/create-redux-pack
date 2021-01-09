@@ -1,2 +1,2 @@
 import { OutputSelector } from 'reselect';
-export declare const createSelector: <T>(reducerName: string, stateKey: string) => OutputSelector<any, T, (res: any) => T>;
+export declare const createSelector: <RT, DT = any>(reducerOrSource: string | ((state: any) => DT), keyOrFormat: string | ((state: DT) => RT)) => OutputSelector<any, RT, (res: DT) => RT>;
