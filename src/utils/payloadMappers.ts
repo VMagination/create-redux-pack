@@ -1,9 +1,20 @@
 import { CreateReduxPackPayloadMap } from '../types';
 import { createSelector as createReSelector } from 'reselect';
 import createReduxPack, { makeKeysReadable } from '../index';
-import { hasCRPackName } from './hasCRPackName';
+import { getReadableKey } from './getReadableKey';
 
 const shouldRecursionEnd = (payloadMapByKey: any) => 'initial' in payloadMapByKey;
+
+const getIt = (obj: any = {}, path?: string, defaultValue: any = undefined) => {
+  if (path === '') return obj;
+  const find = (regexp: RegExp) =>
+    (path ?? '')
+      .split(regexp)
+      .filter(Boolean)
+      .reduce((res, key) => (res ?? false ? res[key] : res), obj);
+  const found = find(/[,[\]]+?/) || find(/[,[\].]+?/);
+  return found === undefined || found === obj ? defaultValue : found;
+};
 
 export const addStateParam = (
   obj: Record<string, any>,
@@ -22,16 +33,6 @@ export const addStateParam = (
   obj[stateKey] = modification ? modification(payloadValue, state[stateKey]) : payloadValue;
 };
 
-const getIt = (obj: any = {}, path = '', defaultValue: any = undefined) => {
-  const find = (regexp: RegExp) =>
-    path
-      .split(regexp)
-      .filter(Boolean)
-      .reduce((res, key) => (res ?? false ? res[key] : res), obj);
-  const found = find(/[,[\]]+?/) || find(/[,[\].]+?/);
-  return found === undefined || found === obj ? defaultValue : found;
-};
-
 export const addMappedPayloadToState = <S = Record<string, any>>(
   obj: Record<string, any>,
   payloadMap: CreateReduxPackPayloadMap<S>,
@@ -44,14 +45,13 @@ export const addMappedPayloadToState = <S = Record<string, any>>(
   keys.forEach((key) => {
     const payloadMapByKey: any = payloadMap[key as keyof S];
     if (shouldRecursionEnd(payloadMapByKey)) {
-      console.log(payloadMapByKey);
       return addStateParam(obj, key, payloadMap, name, payload, state, prefix);
     }
     const param = payloadMapByKey?.key;
     const innerKey = createReduxPack.getKeyName(name, `${prefix}${key}`);
     obj[innerKey] = { ...state[innerKey], ...(obj[innerKey] || {}) };
     const payloadParam = param ? getIt(payload, param) : payload;
-    const nextPrefix = `${prefix}${!hasCRPackName(key) ? key : key.replace(/ of .+/, '')}.`;
+    const nextPrefix = `${prefix}${getReadableKey(key)}.`;
     addMappedPayloadToState(obj[innerKey], payloadMapByKey, name, payloadParam, state[innerKey], nextPrefix);
   });
 };
@@ -76,7 +76,7 @@ const addMappedInitialToState = <S = Record<string, any>>(
       obj[innerKey] = payloadMapByKey.initial;
       return;
     }
-    const nextPrefix = `${prefix}${!hasCRPackName(key) ? key : key.replace(/ of .+/, '')}.`;
+    const nextPrefix = `${prefix}${getReadableKey(key)}.`;
     obj[innerKey] = obj[innerKey] || {};
     addMappedInitialToState(obj[innerKey], payloadMapByKey, name, nextPrefix);
   });
@@ -108,7 +108,7 @@ const addMappedStateNames = <S = Record<string, any>>(
       return;
     }
     const innerKeys = {};
-    const nextPrefix = `${prefix}${!hasCRPackName(key) ? key : key.replace(/ of .+/, '')}.`;
+    const nextPrefix = `${prefix}${getReadableKey(key)}.`;
     addMappedStateNames(innerKeys, payloadMapByKey, name, nextPrefix);
     obj[key] = Object.assign(createReduxPack.getKeyName(name, `${prefix}${key}`), innerKeys);
   });
@@ -183,7 +183,7 @@ const addMappedSelectors = <S = Record<string, any>>(
           )
         : state[innerKey];
     });
-    const nextPrefix = `${prefix}${!hasCRPackName(key) ? key : key.replace(/ of .+/, '')}.`;
+    const nextPrefix = `${prefix}${getReadableKey(key)}.`;
     addMappedSelectors(innerSelectors, payloadMapByKey, name, sourceSelector, nextPrefix);
     obj[key] = Object.assign(sourceSelector, innerSelectors);
   });

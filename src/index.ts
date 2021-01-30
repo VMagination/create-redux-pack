@@ -319,58 +319,6 @@ const createReducerOn = <S>(
   createReduxPack.injectReducerInto(reducerName || 'UnspecifiedReducer', actionMap || {}, initialState || {});
 };
 
-const wasd = createReduxPack({
-  name: 'PackWithGenerator',
-  reducerName: 'asd' + 4,
-  resultInitial: [],
-}).withGenerator(
-  mergeGenerators(
-    {
-      initialState: ({ name }) => ({
-        [name + 'Flag']: false,
-      }),
-      stateNames: ({ name }) => ({
-        flag: name + 'Flag',
-      }),
-      actionNames: ({ name }) => ({
-        reset: name + 'Reset',
-      }),
-      actions: ({ name }) => ({
-        reset: createAction(name + 'Reset'),
-      }),
-      reducer: ({ name }) => ({
-        [createReduxPack.getRunName(name)]: createReducerCase(() => ({
-          [createReduxPack.getLoadingName(name)]: false,
-          somethingCool: 'right here',
-        })),
-        [name + 'Reset']: createReducerCase(() => ({
-          [createReduxPack.getResultName(name)]: [],
-          [name + 'Flag']: true,
-        })),
-      }),
-      selectors: ({ reducerName, name }) => ({
-        flag: createSelector(reducerName, name + 'Flag'),
-      }),
-      newParam: () => ({
-        anything: 'here',
-      }),
-    },
-    {
-      reducer: ({ name }) => ({
-        [createReduxPack.getRunName(name)]: () => ({
-          somethingElse: 'as cool',
-        }),
-      }),
-      initialState: () => ({
-        somethingElse: 'not cool',
-        somethingCool: 'not quite',
-      }),
-    },
-  ),
-);
-
-wasd.name;
-
 export {
   createSelector,
   createAction,

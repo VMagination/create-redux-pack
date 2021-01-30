@@ -32,7 +32,57 @@ To install CRPack simple run:
 npm install --save create-redux-pack
 ```
 
-## Using without configureStore utility
+##Examples
+
+<details>
+<summary>Using with configureStore utility</summary>
+
+> More advance examples displayed in API section.
+
+```js
+    // Package
+    import createReduxPack from 'create-redux-pack';
+  
+    export const {
+      name,
+      stateNames,
+      actionNames,
+      actions,
+      selectors,
+      initialState,
+      reducer,
+    } = createReduxPack({ name: 'SimplePack', reducerName: 'sampleReducer' });
+
+    // React component
+
+    import { actions, selectors } from '@src/store/packages';
+    //...
+    const dispatch = useDispatch();
+    const result = useSelector(selectors.result);
+    const isLoading = useSelector(selectors.isLoading);
+    
+    useEffect(() => dispatch(actions.run()), []);
+    //...
+
+    // Redux-Saga
+    
+    function* fetchSomething() {
+      try {
+        const data = yield call(Api.getSomething);
+        yield put(actions.success(data));
+      } catch (error) {
+        yield put(actions.fail(error));
+      }
+    }
+    
+    function* watcher() {
+      yield takeEvery(actionNames.run, fetchSomething);
+    }
+```
+</details>
+
+<details>
+<summary>Using without configureStore utility</summary>
 
 To add logic of a pack it is required to inject its reducer and initialState into according reducer, other parts like selectors and actions can be used without other requirements.
 
@@ -75,79 +125,9 @@ To add logic of a pack it is required to inject its reducer and initialState int
     }  
 
 ```
-
-## API reference
-
-- [createReduxPack](#createreduxpackpackinfo--pack)
-- [pack.withGenerator](#packwithgeneratorpackinfo-generator--injectedpack)
-- [configureStore](#configurestoreoptions--store)
-- [mergeGenerators](#mergegeneratorsgenerator--generator)
-- [createAction](#createactionname-formatpayload--payload--action)
-- [createSelector](#createselectorreducername-statekey--selector)
-- [createReducerCase](#createreducercasestate-action--partial)
-- [createReducerOn](#createreduceronreducername-actionmap-initialstate--void)
-- [loggerToggle](#enablelogger-and-disablelogger)
-- [toggleReducerUpdates](#createreduxpackfreezereducerupdates)
-- [resetAction](#resetaction)
-- [createReduxPack[formatNames]](#createreduxpack-name-formation)
-- [createReduxPack[informationalItems]](#createreduxpackstore)
-
-### createReduxPack(packInfo) => pack
-Creates pack of redux components with default generator
-
-**createReduxPack**<State, PayloadRun, PayloadMain>
-
-- **State** = Record<string, any> - appended State of reducer
-- **PayloadRun** = void - type of run Payload
-- **PayloadMain** = Record<string, any> - type of success Payload
-
-#### packInfo
-
-- **name** - *string*, Required, pack name, will be modified to be unique
-- **reducerName** - *string*, Required, name of reducer, will be used to add or inject logic into specified reducer
-- **resultInitial** - *any*, Optional, initial value of default result, fallbacks to *null*, should be defined if you are using result for state management
-- **formatPayload** - *(data: PayloadMain) => State*, Optional, formats success payload to match expected State
-- **payloadMap** - *CreateReduxPackPayloadMap\<State\>*, Optional, object of extra fields that will be appended to state
-
-#### payloadMap
-
-{ [key of (State, anotherPackState)]: options | { [innerKey of State[key]]: options | ... }  }
-
-Accepts object with options or nested object with end section containing options, supports keys of  another pack's State.
-
-Options:
-- **key** - *key of PayloadMain*, Optional, key of success Payload that will be used to get a value of current field, fallbacks to State key, supports lodash's get ('key.innerKey[0]'), key of subsection moves payload of that section to that key
-- **initial** - *State[key of field]*, Required, initial value of this field
-- **fallback** - *any*, Optional, value that will replace current field value in case falsy payload will be provided to success action. It's just a guard to prevent potential crashes of bad payload.
-- **modifyValue** - *(value: any, prevValue?: State[key of field]) => State[key of field]*, Optional, used to set new value according or using previous value.
-
-#### Pack contains
-
-- **name** - contains generated name of pack
-- **stateNames** - contains keys to values of state
-    - **isLoading** - string
-    - **result** - string
-    - **error** - string
-    - **[key of State]** - string, fields passed to payloadMap
-    - **[key of State][innerKey of State[key]][...]** - string, fields of nested payloadMap object, returns generated key or own key if field wasn't declared.
-- **actionNames** - contains keys to actions of reducers
-    - **run** - string
-    - **success** - string
-    - **fail** - string
-- **actions** - contains default actions
-    - **run** - (payload: PayloadRun) => Action
-    - **success** - (payload: PayloadMain) => Action
-    - **fail** - (error: string) => Action
-- **initialState** - contains initial state for generated fields can only be accessed with stateNames
-- **reducer** - contains action map for reducer can only be accessed with actionNames  
-- **selectors** - contains selectors for generated fields of state
-    - **isLoading** - Selector for loading
-    - **error** - Selector for error
-    - **result** - Selector for result
-    - **[key of State]** - Selectors for each field of payloadMap
-    - **[key of State][innerKey of State[key]][...]** - Selectors for nested payloadMap object, if field wasn't declared in payloadMap it can still be accessed, failing to acquired that key will result in selector returning *undefined*.
-
-#### createReduxPack usage example
+</details>
+<details>
+<summary>Using with customizations</summary>
 
 ```js
     import createReduxPack from "create-redux-pack";
@@ -218,10 +198,82 @@ Options:
       }
     }
     
-    function* Watcher() {
+    function* watcher() {
       yield takeEvery(actionNames.run, fetchSomething);
     }
 ```
+</details>
+
+## API reference
+
+- [createReduxPack](#createreduxpackpackinfo--pack)
+- [pack.withGenerator](#packwithgeneratorpackinfo-generator--injectedpack)
+- [configureStore](#configurestoreoptions--store)
+- [mergeGenerators](#mergegeneratorsgenerator--generator)
+- [createAction](#createactionname-formatpayload--payload--action)
+- [createSelector](#createselectorreducername-statekey--selector)
+- [createReducerCase](#createreducercasestate-action--partialstate)
+- [createReducerOn](#createreduceronreducername-actionmap-initialstate--void)
+- [loggerToggle](#enablelogger-and-disablelogger)
+- [toggleReducerUpdates](#createreduxpackfreezereducerupdates)
+- [resetAction](#resetaction)
+- [createReduxPack[formatNames]](#createreduxpack-name-formation)
+- [createReduxPack[informationalItems]](#createreduxpack_store)
+
+### createReduxPack(packInfo) => pack
+Creates pack of redux components with default generator
+
+**createReduxPack**<State, PayloadRun, PayloadMain>
+
+- **State** = Record<string, any> - appended State of reducer
+- **PayloadRun** = void - type of run Payload
+- **PayloadMain** = Record<string, any> - type of success Payload
+
+#### packInfo
+
+- **name** - *string*, Required, pack name, will be modified to be unique
+- **reducerName** - *string*, Required, name of reducer, will be used to add or inject logic into specified reducer
+- **resultInitial** - *any*, Optional, initial value of default result, fallbacks to *null*, should be defined if you are using result for state management
+- **formatPayload** - *(data: PayloadMain) => State*, Optional, formats success payload to match expected State
+- **payloadMap** - *CreateReduxPackPayloadMap\<State\>*, Optional, object of extra fields that will be appended to state
+
+#### payloadMap
+
+{ [key of (State, anotherPackState)]: options | { [innerKey of State[key]]: options | ... }  }
+
+Accepts object with options or nested object with end section containing options, supports keys of  another pack's State.
+
+Options:
+- **key** - *key of PayloadMain*, Optional, **key of success Payload** that will be used to get a value of current field, **fallbacks to State key**, while providing '' empty string results in current payload, **supports lodash's get** ('key.innerKey[0]'), *key of subsection moves payload of that section to that key*
+- **initial** - *State[key of field]*, Required, initial value of this field
+- **fallback** - *any*, Optional, value that will replace current field value in case falsy payload will be provided to success action. It's just a guard to prevent potential crashes of bad payload.
+- **modifyValue** - *(value: any, prevValue?: State[key of field]) => State[key of field]*, Optional, used to set new value according or using previous value.
+
+#### Pack contains
+
+- **name** - contains generated name of pack
+- **stateNames** - contains keys to values of state
+    - **isLoading** - string
+    - **result** - string
+    - **error** - string
+    - **[key of State]** - string, fields passed to payloadMap
+    - **[key of State][innerKey of State[key]][...]** - string, fields of nested payloadMap object, returns generated key or own key if field wasn't declared.
+- **actionNames** - contains keys to actions of reducers
+    - **run** - string
+    - **success** - string
+    - **fail** - string
+- **actions** - contains default actions
+    - **run** - (payload: PayloadRun) => Action
+    - **success** - (payload: PayloadMain) => Action
+    - **fail** - (error: string) => Action
+- **initialState** - contains initial state for generated fields can only be accessed with stateNames
+- **reducer** - contains action map for reducer can only be accessed with actionNames  
+- **selectors** - contains selectors for generated fields of state
+    - **isLoading** - Selector for loading
+    - **error** - Selector for error
+    - **result** - Selector for result
+    - **[key of State]** - Selectors for each field of payloadMap
+    - **[key of State][innerKey of State[key]][...]** - Selectors for nested payloadMap object, if field wasn't declared in payloadMap it can still be accessed, failing to acquired that key will result in selector returning *undefined*.
 
 ### pack.withGenerator(packInfo, generator) => injectedPack
 
@@ -301,11 +353,9 @@ Merges multiple generators into one. Exists to combine logic of several reusable
 
 Creates same action as CRPack creates internally. Accepts action name and a function to format payload.
 
-### createSelector(reducerName, stateKey) => Selector
+### createSelector(reducerOrSource, keyOrFormat) => Selector
 
-Creates same selector as CRPack creates internally. Accepts reducer name  to get state from and that state's key.
-
-> Doesn't support getting data from nested objects. It is advised to use reselect createSelector using pack's stateNames to get what you need.
+Creates same selector as CRPack creates internally. Accepts reducer name to get state from and that state's key or source selector and formation.
 
 ### createReducerCase(state, action) => Partial<State>
 
