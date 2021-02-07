@@ -133,11 +133,17 @@ const wrapSelector = (prevSelector: any, key: any, format = (state: any) => stat
       get: (target: any, p) => {
         if (!target[selectorContent]) {
           target[selectorContent] = {
-            [p]: wrapSelector(target, p),
+            [p]: wrapSelector(
+              createReSelector(prevSelector, (state: any) => (state || {})[key]),
+              p,
+            ),
           };
         } else {
           if (!target[selectorContent][p]) {
-            target[selectorContent][p] = wrapSelector(target, p);
+            target[selectorContent][p] = wrapSelector(
+              createReSelector(prevSelector, (state: any) => (state || {})[key]),
+              p,
+            );
           }
         }
         return target[selectorContent][p];
@@ -157,7 +163,7 @@ const addMappedSelectors = <S = Record<string, any>>(
     const payloadMapByKey: any = payloadMap[key as keyof S];
     const innerKey = createReduxPack.getKeyName(name, `${prefix}${key}`);
     if (shouldRecursionEnd(payloadMapByKey)) {
-      const format = /*payloadMapByKey?.formatSelector || */ (state: any) => state;
+      const format = payloadMapByKey?.formatSelector || ((state: any) => state);
       obj[key] = wrapSelector(prevSelector, innerKey, format);
       return;
     }

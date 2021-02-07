@@ -32,12 +32,10 @@ To install CRPack simple run:
 npm install --save create-redux-pack
 ```
 
-##Examples
+## Examples
 
 <details>
 <summary>Using with configureStore utility</summary>
-
-> More advance examples displayed in API section.
 
 ```js
     // Package
@@ -211,7 +209,7 @@ To add logic of a pack it is required to inject its reducer and initialState int
 - [configureStore](#configurestoreoptions--store)
 - [mergeGenerators](#mergegeneratorsgenerator--generator)
 - [createAction](#createactionname-formatpayload--payload--action)
-- [createSelector](#createselectorreducername-statekey--selector)
+- [createSelector](#createselectorreducerorsource-keyorformat--selector)
 - [createReducerCase](#createreducercasestate-action--partialstate)
 - [createReducerOn](#createreduceronreducername-actionmap-initialstate--void)
 - [loggerToggle](#enablelogger-and-disablelogger)
@@ -235,7 +233,7 @@ Creates pack of redux components with default generator
 - **reducerName** - *string*, Required, name of reducer, will be used to add or inject logic into specified reducer
 - **resultInitial** - *any*, Optional, initial value of default result, fallbacks to *null*, should be defined if you are using result for state management
 - **formatPayload** - *(data: PayloadMain) => State*, Optional, formats success payload to match expected State
-- **payloadMap** - *CreateReduxPackPayloadMap\<State\>*, Optional, object of extra fields that will be appended to state
+- **payloadMap** - *CreateReduxPackPayloadMap<State>*, Optional, object of extra fields that will be appended to state
 
 #### payloadMap
 
@@ -247,33 +245,34 @@ Options:
 - **key** - *key of PayloadMain*, Optional, **key of success Payload** that will be used to get a value of current field, **fallbacks to State key**, while providing '' empty string results in current payload, **supports lodash's get** ('key.innerKey[0]'), *key of subsection moves payload of that section to that key*
 - **initial** - *State[key of field]*, Required, initial value of this field
 - **fallback** - *any*, Optional, value that will replace current field value in case falsy payload will be provided to success action. It's just a guard to prevent potential crashes of bad payload.
+- **formatSelector** - *(data: State[key of field]) => any*, Optional, function to format field value for selector to return.
 - **modifyValue** - *(value: any, prevValue?: State[key of field]) => State[key of field]*, Optional, used to set new value according or using previous value.
 
 #### Pack contains
 
 - **name** - contains generated name of pack
+- **actions** - contains default actions
+    - **run** - (payload: PayloadRun) => Action
+    - **success** - (payload: PayloadMain) => Action
+    - **fail** - (error: string) => Action
+- **selectors** - contains selectors for generated fields of state
+    - **isLoading** - Selector for loading
+    - **error** - Selector for error
+    - **result** - Selector for result
+    - **[key of State]** - Selectors for each field of payloadMap
+    - **[key of State][innerKey of State[key]][...]** - Selectors for nested payloadMap object, if field wasn't declared in payloadMap it can still be accessed, failing to acquire that key will result in selector returning *undefined*.
+- **initialState** - contains initial state for generated fields can only be accessed with stateNames
+- **reducer** - contains action map for reducer can only be accessed with actionNames
+- **actionNames** - contains keys to actions of reducers
+    - **run** - string
+    - **success** - string
+    - **fail** - string
 - **stateNames** - contains keys to values of state
     - **isLoading** - string
     - **result** - string
     - **error** - string
     - **[key of State]** - string, fields passed to payloadMap
     - **[key of State][innerKey of State[key]][...]** - string, fields of nested payloadMap object, returns generated key or own key if field wasn't declared.
-- **actionNames** - contains keys to actions of reducers
-    - **run** - string
-    - **success** - string
-    - **fail** - string
-- **actions** - contains default actions
-    - **run** - (payload: PayloadRun) => Action
-    - **success** - (payload: PayloadMain) => Action
-    - **fail** - (error: string) => Action
-- **initialState** - contains initial state for generated fields can only be accessed with stateNames
-- **reducer** - contains action map for reducer can only be accessed with actionNames  
-- **selectors** - contains selectors for generated fields of state
-    - **isLoading** - Selector for loading
-    - **error** - Selector for error
-    - **result** - Selector for result
-    - **[key of State]** - Selectors for each field of payloadMap
-    - **[key of State][innerKey of State[key]][...]** - Selectors for nested payloadMap object, if field wasn't declared in payloadMap it can still be accessed, failing to acquired that key will result in selector returning *undefined*.
 
 ### pack.withGenerator(packInfo, generator) => injectedPack
 
@@ -309,7 +308,7 @@ Accepts an object containing fields with functions that accept a packInfo parame
 
 Main purpose of withGenerator is to inject logic into default generator
 
-> It is advised to get packInfo from provided parameter to keep generators reusable and get packInfo that was formatted internally
+> It is advised to get packInfo from provided parameter to keep generators reusable and get packInfo modified internally
 
 ```js
   import createReduxPack, { createAction } from 'create-redux-pack';

@@ -2,12 +2,12 @@ import { ActionCreatorWithPreparedPayload, configureStore } from '@reduxjs/toolk
 import { Reducer } from 'redux';
 import { OutputSelector } from 'reselect';
 
-export type CreateReduxPackParams<S, PayloadMain> = {
+export type CreateReduxPackParams<S, PayloadMain, RealType extends CRPackRealType<S> = any> = {
   name: string;
   resultInitial?: any;
   reducerName: string;
   formatPayload?: (data: PayloadMain) => any;
-  payloadMap?: CreateReduxPackPayloadMap<S>;
+  payloadMap?: CreateReduxPackPayloadMap<S, RealType> & RealType;
 };
 
 export type Action<T> = {
@@ -18,9 +18,10 @@ export type Action<T> = {
 export type CreateReduxPackGeneratorBlock<RT = any> = <
   S = Record<string, any>,
   PayloadMain = Record<string, any>,
-  RTD = Record<string, any>
+  RTD = Record<string, any>,
+  RealType extends CRPackRealType<S> = any
 >(
-  info: CreateReduxPackParams<S, PayloadMain>,
+  info: CreateReduxPackParams<S, PayloadMain, RealType>,
 ) => RT | RTD;
 
 export type CreateReduxPackCustomGenerator<Gen = Record<string, any>> = Record<
@@ -44,19 +45,22 @@ export type CreateReduxPackReducer<PayloadMain = void, PayloadRun = Record<strin
 
 export type CreateReduxPackInitialState = Record<string, any>;
 
-type CRPackPayloadMapItem<T> =
+export type CRPackRealType<S> = Record<string | keyof S, any>;
+
+type CRPackPayloadMapItem<T, RealType extends CRPackRealType<T>> =
   | {
       initial: T;
+      formatSelector?: (state: T) => ReturnType<RealType['formatSelector']>;
       key?: string;
       fallback?: T;
       modifyValue?: (payloadValue: any, prevStateValue?: T) => T;
     }
   | ({
-      [K in keyof T]?: CRPackPayloadMapItem<T[K]>;
+      [K in keyof T]?: CRPackPayloadMapItem<T[K], RealType[K]>;
     } & { key?: string });
 
-export type CreateReduxPackPayloadMap<S> = {
-  [P in keyof S]?: CRPackPayloadMapItem<S[P]>;
+export type CreateReduxPackPayloadMap<S, RealType extends CRPackRealType<S> = any> = {
+  [P in keyof S]?: CRPackPayloadMapItem<S[P], RealType[P]>;
 };
 
 type CRPackStateName<S> = S extends Record<string, any>
@@ -81,44 +85,59 @@ export type CreateReduxPackActions<S, PayloadRun, PayloadMain> = {
   fail: CreateReduxPackAction<string, string>;
 };
 
-type CreateReduxPackSelector<S> = {
+type CreateReduxPackSelector<S, RealType extends CRPackRealType<S>> = {
   [P in keyof S]: S[P] extends Record<string, any>
-    ? OutputSelector<any, S[P], any> & CreateReduxPackSelector<S[P]>
-    : OutputSelector<any, S[P], any>;
+    ? OutputSelector<
+        any,
+        'formatSelector' extends keyof RealType[P] ? ReturnType<RealType[P]['formatSelector']> : S[P],
+        any
+      > &
+        CreateReduxPackSelector<S[P], RealType[P]>
+    : OutputSelector<
+        any,
+        'formatSelector' extends keyof RealType[P] ? ReturnType<RealType[P]['formatSelector']> : S[P],
+        any
+      >;
 };
 
-export type CreateReduxPackSelectors<S> = {
+export type CreateReduxPackSelectors<S, RealType extends CRPackRealType<S> = any> = {
   isLoading: OutputSelector<any, boolean, any>;
   error: OutputSelector<any, null | string, any>;
   result: OutputSelector<any, S, any>;
-} & CreateReduxPackSelector<S>;
+} & CreateReduxPackSelector<S, RealType>;
 
-export type CreateReduxPackReturnType<S, PayloadRun, PayloadMain> = {
+export type CreateReduxPackReturnType<S, PayloadRun, PayloadMain, RealType extends CRPackRealType<S> = any> = {
   stateNames: CreateReduxPackStateNames<S>;
   actionNames: CreateReduxPackActionNames;
   actions: CreateReduxPackActions<S, PayloadRun, PayloadMain>;
   initialState: CreateReduxPackInitialState;
   reducer: CreateReduxPackReducer<PayloadMain, PayloadRun>;
-  selectors: CreateReduxPackSelectors<S>;
+  selectors: CreateReduxPackSelectors<S, RealType>;
   name: string;
 } & {
   withGenerator: <Gen = Record<string, any>>(
     generator: {
-      [P in Exclude<keyof Gen, 'name'>]: (info: CreateReduxPackParams<S, PayloadMain>) => Gen[P];
+      [P in Exclude<keyof Gen, 'name'>]: (info: CreateReduxPackParams<S, PayloadMain, RealType>) => Gen[P];
     },
   ) => {
-    [P in keyof CreateReduxPackCombinedGenerators<Gen, S, PayloadRun, PayloadMain>]: CreateReduxPackCombinedGenerators<
+    [P in keyof CreateReduxPackCombinedGenerators<
       Gen,
       S,
       PayloadRun,
-      PayloadMain
-    >[P];
+      PayloadMain,
+      RealType
+    >]: CreateReduxPackCombinedGenerators<Gen, S, PayloadRun, PayloadMain, RealType>[P];
   };
 };
 
-export type CreateReduxPackFn = <S = Record<string, any>, PayloadRun = void, PayloadMain = Record<string, any>>(
-  info: CreateReduxPackParams<S, PayloadMain>,
-) => CreateReduxPackReturnType<S, PayloadRun, PayloadMain>;
+export type CreateReduxPackFn = <
+  S = Record<string, any>,
+  PayloadRun = void,
+  PayloadMain = Record<string, any>,
+  RealType extends CRPackRealType<S> = any
+>(
+  info: CreateReduxPackParams<S, PayloadMain, RealType>,
+) => CreateReduxPackReturnType<S, PayloadRun, PayloadMain, RealType>;
 
 export type CreateReduxPackActionMap = Record<string, (state: any, action: Action<any>) => typeof state>;
 
@@ -148,24 +167,26 @@ export type CreateReduxPackType = {
   /*
    * @deprecated use pack's withGenerator(gen) method instead
    */
-  withGenerator: <S, PayloadRun, PayloadMain, Gen>(
-    info: CreateReduxPackParams<S, PayloadMain>,
+  withGenerator: <S, PayloadRun, PayloadMain, Gen, RealType extends CRPackRealType<S> = any>(
+    info: CreateReduxPackParams<S, PayloadMain, RealType>,
     generator: {
-      [P in Exclude<keyof Gen, 'name'>]: (info: CreateReduxPackParams<S, PayloadMain>) => Gen[P];
+      [P in Exclude<keyof Gen, 'name'>]: (info: CreateReduxPackParams<S, PayloadMain, RealType>) => Gen[P];
     },
   ) => {
-    [P in keyof CreateReduxPackCombinedGenerators<Gen, S, PayloadRun, PayloadMain>]: CreateReduxPackCombinedGenerators<
+    [P in keyof CreateReduxPackCombinedGenerators<
       Gen,
       S,
       PayloadRun,
-      PayloadMain
-    >[P];
+      PayloadMain,
+      RealType
+    >]: CreateReduxPackCombinedGenerators<Gen, S, PayloadRun, PayloadMain, RealType>[P];
   };
 };
 
-export type CreateReduxPackCombinedGenerators<Gen, S, PayloadRun, PayloadMain> = CreateReduxPackReturnType<
+export type CreateReduxPackCombinedGenerators<
+  Gen,
   S,
   PayloadRun,
-  PayloadMain
-> &
-  Gen;
+  PayloadMain,
+  RealType extends CRPackRealType<S> = any
+> = CreateReduxPackReturnType<S, PayloadRun, PayloadMain, RealType> & Gen;

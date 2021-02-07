@@ -60,6 +60,7 @@ const {
     },
     item2: {
       initial: { a: 1 },
+      formatSelector: (val) => ({ b: val.a }),
       fallback: { a: 10 },
     },
     item3: {
@@ -397,7 +398,7 @@ test('check pack with payloadMap definitions and recursions', () => {
   expect(payloadPackSelectors.error(state())).toEqual(null);
   expect(payloadPackSelectors.result(state())).toEqual(null);
   expect(payloadPackSelectors.item1(state())).toEqual(null);
-  expect(payloadPackSelectors.item2(state())).toEqual({ a: 1 });
+  expect(payloadPackSelectors.item2(state())).toEqual({ b: 1 });
   expect(payloadPackSelectors.item2.a(state())).toEqual(1);
   expect(payloadPackSelectors.item3(state())).toEqual({ innerItem1: '3.1', innerItem2: '3.2' });
   expect(payloadPackSelectors.item3(state())[payloadPackStateNames.item3.innerItem1]).toEqual('3.1');
@@ -405,14 +406,14 @@ test('check pack with payloadMap definitions and recursions', () => {
   expect(payloadPackSelectors.item3.innerItem1(state())).toEqual('3.1');
   expect(payloadPackSelectors.item4.innerItem1.innerInnerItem1(state())).toEqual('4.1.1');
 
-  expect('a' in payloadPackSelectors.item2).toEqual(false);
+  expect('b' in payloadPackSelectors.item2).toEqual(false);
   expect(payloadPackSelectors.item2.a(state())).toEqual(1);
   expect(payloadPackSelectors.item2.a === payloadPackSelectors.item2.a).toEqual(true);
   expect(payloadPackSelectors.item2.b).toBeDefined();
   expect(payloadPackSelectors.item2.b(state())).toEqual(undefined);
   expect(payloadPackSelectors.item2.b.c).toBeDefined();
   expect(payloadPackSelectors.item2.b.c(state())).toEqual(undefined);
-  expect('a' in payloadPackSelectors.item2(state())).toEqual(true);
+  expect('b' in payloadPackSelectors.item2(state())).toEqual(true);
   expect('innerItem1' in payloadPackSelectors.item4).toEqual(true);
   expect('innerItem1' in payloadPackSelectors.item4(state())).toEqual(true);
   expect(payloadPackStateNames.item4.innerItem1 in payloadPackSelectors.item4).toEqual(false);
@@ -426,7 +427,7 @@ test('check pack with payloadMap state management', () => {
   expect(payloadPackSelectors.error(state())).toEqual(null);
   expect(payloadPackSelectors.result(state())).toEqual(null);
   expect(payloadPackSelectors.item1(state())).toEqual(null);
-  expect(payloadPackSelectors.item2(state())).toEqual({ a: 1 });
+  expect(payloadPackSelectors.item2(state())).toEqual({ b: 1 });
 
   createReduxPack._store.dispatch(
     payloadPackActions.success({ passedItem1: 'setItem1', item2: { a: 2 }, innerItem1: '3.1 new' }),
@@ -440,7 +441,7 @@ test('check pack with payloadMap state management', () => {
     innerItem1: '3.1 new',
   });
   expect(payloadPackSelectors.item1(state())).toEqual('setItem1');
-  expect(payloadPackSelectors.item2(state())).toEqual({ a: 2 });
+  expect(payloadPackSelectors.item2(state())).toEqual({ b: 2 });
   expect(payloadPackSelectors.item3(state())).toEqual({ innerItem1: '3.1 new', innerItem2: undefined });
 
   createReduxPack._store.dispatch(payloadPackActions.run());
@@ -453,7 +454,7 @@ test('check pack with payloadMap state management', () => {
     innerItem1: '3.1 new',
   });
   expect(payloadPackSelectors.item1(state())).toEqual('setItem1');
-  expect(payloadPackSelectors.item2(state())).toEqual({ a: 2 });
+  expect(payloadPackSelectors.item2(state())).toEqual({ b: 2 });
 
   createReduxPack._store.dispatch(payloadPackActions.success(undefined));
 
@@ -461,7 +462,8 @@ test('check pack with payloadMap state management', () => {
   expect(payloadPackSelectors.error(state())).toEqual(null);
   expect(payloadPackSelectors.result(state())).toEqual(undefined);
   expect(payloadPackSelectors.item1(state())).toEqual(undefined);
-  expect(payloadPackSelectors.item2(state())).toEqual({ a: 10 });
+  expect(payloadPackSelectors.item2(state())).toEqual({ b: 10 });
+  expect(payloadPackSelectors.item2.a(state())).toEqual(10);
 
   createReduxPack._store.dispatch(payloadPackActions.fail('error1'));
 
@@ -469,7 +471,8 @@ test('check pack with payloadMap state management', () => {
   expect(payloadPackSelectors.error(state())).toEqual('error1');
   expect(payloadPackSelectors.result(state())).toEqual(undefined);
   expect(payloadPackSelectors.item1(state())).toEqual(undefined);
-  expect(payloadPackSelectors.item2(state())).toEqual({ a: 10 });
+  expect(payloadPackSelectors.item2(state())).toEqual({ b: 10 });
+  expect(payloadPackSelectors.item2.a(state())).toEqual(10);
 });
 
 test('check pack with payloadMap modification', () => {
@@ -483,7 +486,7 @@ test('check pack with payloadMap modification', () => {
   });
   expect(payloadPackSelectors.item1(state())).toEqual('setItem1');
   expect(modifyPackSelectors[payloadPackStateNames.item4].sad(state())).toEqual('sad');
-  expect(payloadPackSelectors.item2(state())).toEqual({ a: 2 });
+  expect(payloadPackSelectors.item2(state())).toEqual({ b: 2 });
 
   createReduxPack._store.dispatch(modifyPackActions.success({ passedItem1: 1 }));
 

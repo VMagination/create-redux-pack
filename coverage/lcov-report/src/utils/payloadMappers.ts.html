@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">99.07% </span>
+                <span class="strong">99.08% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>106/107</span>
+                <span class='fraction'>108/109</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">84.62% </span>
+                <span class="strong">83.1% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>55/65</span>
+                <span class='fraction'>59/71</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>34/34</span>
+                <span class='fraction'>36/36</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>98/98</span>
+                <span class='fraction'>100/100</span>
             </div>
         
             
@@ -248,8 +248,12 @@
 <a name='L189'></a><a href='#L189'>189</a>
 <a name='L190'></a><a href='#L190'>190</a>
 <a name='L191'></a><a href='#L191'>191</a>
-<a name='L192'></a><a href='#L192'>192</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L192'></a><a href='#L192'>192</a>
+<a name='L193'></a><a href='#L193'>193</a>
+<a name='L194'></a><a href='#L194'>194</a>
+<a name='L195'></a><a href='#L195'>195</a>
+<a name='L196'></a><a href='#L196'>196</a>
+<a name='L197'></a><a href='#L197'>197</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -377,21 +381,27 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-yes">10x</span>
-<span class="cline-any cline-yes">22x</span>
+<span class="cline-any cline-yes">23x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">12x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">8x</span>
-<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">12x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -408,7 +418,7 @@
 <span class="cline-any cline-yes">11x</span>
 <span class="cline-any cline-yes">11x</span>
 <span class="cline-any cline-yes">11x</span>
-<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">12x</span>
 <span class="cline-any cline-yes">7x</span>
 <span class="cline-any cline-yes">7x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -442,7 +452,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { CreateReduxPackPayloadMap } from '../types';
 import { createSelector as createReSelector } from 'reselect';
 import createReduxPack, { makeKeysReadable } from '../index';
-import { hasCRPackName } from './hasCRPackName';
 import { getReadableKey } from './getReadableKey';
 &nbsp;
 const shouldRecursionEnd = (payloadMapByKey: any) =&gt; 'initial' in payloadMapByKey;
@@ -575,11 +584,17 @@ const wrapSelector = (prevSelector: any, key: any, format = (state: any) =&gt; s
       get: (target: any, p) =&gt; {
         if (!target[selectorContent]) {
           target[selectorContent] = {
-            [p]: wrapSelector(target, p),
+            [p]: wrapSelector(
+              createReSelector(prevSelector, (state: any) =&gt; (state || <span class="branch-1 cbranch-no" title="branch not covered" >{})</span>[key]),
+              p,
+            ),
           };
         } else {
           if (!target[selectorContent][p]) {
-            target[selectorContent][p] = wrapSelector(target, p);
+            target[selectorContent][p] = wrapSelector(
+              createReSelector(prevSelector, (state: any) =&gt; (state || <span class="branch-1 cbranch-no" title="branch not covered" >{})</span>[key]),
+              p,
+            );
           }
         }
         return target[selectorContent][p];
@@ -599,7 +614,7 @@ const addMappedSelectors = &lt;S = Record&lt;string, any&gt;&gt;(
     const payloadMapByKey: any = payloadMap[key as keyof S];
     const innerKey = createReduxPack.getKeyName(name, `${prefix}${key}`);
     if (shouldRecursionEnd(payloadMapByKey)) {
-      const format = /*payloadMapByKey?.formatSelector || */ (state: any) =&gt; state;
+      const format = payloadMapByKey?.formatSelector || ((state: any) =&gt; state);
       obj[key] = wrapSelector(prevSelector, innerKey, format);
       return;
     }
@@ -637,7 +652,7 @@ const addMappedSelectors = &lt;S = Record&lt;string, any&gt;&gt;(
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank">istanbul</a>
-                at Sat Jan 30 2021 22:37:03 GMT+0300 (Moscow Standard Time)
+                at Sun Feb 07 2021 23:22:31 GMT+0300 (Moscow Standard Time)
             </div>
         </div>
         <script src="../../prettify.js"></script>
