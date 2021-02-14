@@ -5,8 +5,12 @@ import { getReadableKey } from './getReadableKey';
 
 const shouldRecursionEnd = (payloadMapByKey: any) => 'initial' in payloadMapByKey;
 
-const getIt = (obj: any = {}, path?: string, defaultValue: any = undefined) => {
-  if (path === '') return obj;
+const getIt = (obj: any, path?: string, defaultValue: any = undefined) => {
+  if (path === '') {
+    console.log(obj, defaultValue);
+    return obj ?? defaultValue;
+  }
+  if ((obj && typeof obj !== 'object') || !obj) return defaultValue;
   const find = (regexp: RegExp) =>
     (path ?? '')
       .split(regexp)
@@ -26,9 +30,10 @@ export const addStateParam = (
   prefix = '',
 ): void => {
   const payloadMapByKey = payloadMap[key];
-  const param = payloadMapByKey?.key || key;
+  const param = payloadMapByKey?.key ?? key;
   const modification = payloadMapByKey?.modifyValue;
-  const payloadValue = param ? getIt(payload, param, payloadMapByKey?.fallback) : payload;
+  const payloadValue =
+    (param ?? null) !== null ? getIt(payload, param, payloadMapByKey?.fallback) : payload ?? payloadMapByKey?.fallback;
   const stateKey = createReduxPack.getKeyName(name, `${prefix}${key}`);
   obj[stateKey] = modification ? modification(payloadValue, state[stateKey]) : payloadValue;
 };

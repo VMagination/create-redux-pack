@@ -4,25 +4,6 @@ Create Redux Pack is a wrapper around **@reduxjs/toolkit** and **reselect** mean
 
 Most Apps with Redux state management use a lot of boilerplates. This library moves those boilerplates / repetitions away from your eyes. Even if default logic of CRPack doesn't fit your code style you can always make your own reusable generator(s) and still save a lot of time.
 
-## Lazy loading
-
-CRPack fully and internally supports lazy loading. If you are using webpack reducer of each package will be injected on their first import.
-
-> Lazy loading only works if store was configured using provided configureStore utility.
-
-## Dynamic Logger
-
-CRPack has integrated logger which can be enabled and disabled from any part of your code. It will only display type and payload of dispatched actions but practice shows it is enough and if it isn't you should use redux devtools, the main purpose of this logger is to display actions that are dispatched on current page / screen to ease debugging a bit.
-
-## CRPack is an extension not a replacement
-
-CRPack is just a utility you can use to create common / simple packs of redux components. Unless you configure store with this library you can just append provided components where you need them. And even if you do configure store with it, it still provides tools to manually create what you need. For example createReducerOn append an action map to reducer and inject it on import (supports lazy loading).
-
-## Reducer is an Action Map
-
-In context of CRPack all Action Maps referred as Reducers. The difference of terms is major, yet passing action map to parameter named reducer will result in an actual reducer with same cases making those two terms equal for the library.
-
-> Action Map is an object containing cases for reducer that looks like this <br />**{ [typeOfAction]: (state, action) => ({ ...state, result: action.payload }) }**
 
 ## Installation
 
@@ -202,6 +183,26 @@ To add logic of a pack it is required to inject its reducer and initialState int
 ```
 </details>
 
+## Lazy loading
+
+CRPack fully and internally supports lazy loading. If you are using webpack reducer of each package will be injected on their first import.
+
+> Lazy loading only works if store was configured using provided configureStore utility.
+
+## Dynamic Logger
+
+CRPack has integrated logger which can be enabled and disabled from any part of your code. It will only display type and payload of dispatched actions but practice shows it is enough and if it isn't you should use redux devtools, the main purpose of this logger is to display actions that are dispatched on current page / screen to ease debugging a bit.
+
+## CRPack is an extension not a replacement
+
+CRPack is just a utility you can use to create common / simple packs of redux components. Unless you configure store with this library you can just append provided components where you need them. And even if you do configure store with it, it still provides tools to manually create what you need. For example createReducerOn append an action map to reducer and inject it on import (supports lazy loading).
+
+## Reducer is an Action Map
+
+In context of CRPack all Action Maps referred as Reducers. The difference of terms is major, yet passing action map to parameter named reducer will result in an actual reducer with same cases making those two terms equal for the library.
+
+> Action Map is an object containing cases for reducer that looks like this <br />**{ [typeOfAction]: (state, action) => ({ ...state, result: action.payload }) }**
+
 ## API reference
 
 - [createReduxPack](#createreduxpackpackinfo--pack)
@@ -231,9 +232,10 @@ Creates pack of redux components with default generator
 
 - **name** - *string*, Required, pack name, will be modified to be unique
 - **reducerName** - *string*, Required, name of reducer, will be used to add or inject logic into specified reducer
-- **resultInitial** - *any*, Optional, initial value of default result, fallbacks to *null*, should be defined if you are using result for state management
+- **defaultInitial** - *any*, Optional, initial value of default result/value, fallbacks to *null*, should be defined if you are using result/value for state management
 - **formatPayload** - *(data: PayloadMain) => State*, Optional, formats success payload to match expected State
 - **payloadMap** - *CreateReduxPackPayloadMap<State>*, Optional, object of extra fields that will be appended to state
+- **template** - *'request' | 'simple'*, Optional, template to use when creating a package, fallbacks to 'request'.
 
 #### payloadMap
 
@@ -245,10 +247,10 @@ Options:
 - **key** - *key of PayloadMain*, Optional, **key of success Payload** that will be used to get a value of current field, **fallbacks to State key**, while providing '' empty string results in current payload, **supports lodash's get** ('key.innerKey[0]'), *key of subsection moves payload of that section to that key*
 - **initial** - *State[key of field]*, Required, initial value of this field
 - **fallback** - *any*, Optional, value that will replace current field value in case falsy payload will be provided to success action. It's just a guard to prevent potential crashes of bad payload.
-- **formatSelector** - *(data: State[key of field]) => any*, Optional, function to format field value for selector to return.
+- **formatSelector** - *(data: State[key of field]) => any*, Optional, function to format field value for selector to return. **Types have to be specified explicitly** (known issue) *or typescript will throw error on non-primitive types*.
 - **modifyValue** - *(value: any, prevValue?: State[key of field]) => State[key of field]*, Optional, used to set new value according or using previous value.
 
-#### Pack contains
+#### Request Pack contains
 
 - **name** - contains generated name of pack
 - **actions** - contains default actions
@@ -271,6 +273,26 @@ Options:
     - **isLoading** - string
     - **result** - string
     - **error** - string
+    - **[key of State]** - string, fields passed to payloadMap
+    - **[key of State][innerKey of State[key]][...]** - string, fields of nested payloadMap object, returns generated key or own key if field wasn't declared.
+  
+#### Simple Pack contains
+
+- **name** - contains generated name of pack
+- **actions** - contains default actions
+    - **set** - (payload: PayloadMain) => Action
+    - **reset** - () => Action
+- **selectors** - contains selectors for generated fields of state
+    - **value** - Selector for default value field
+    - **[key of State]** - Selectors for each field of payloadMap
+    - **[key of State][innerKey of State[key]][...]** - Selectors for nested payloadMap object, if field wasn't declared in payloadMap it can still be accessed, failing to acquire that key will result in selector returning *undefined*.
+- **initialState** - contains initial state for generated fields can only be accessed with stateNames
+- **reducer** - contains action map for reducer can only be accessed with actionNames
+- **actionNames** - contains keys to actions of reducers
+    - **set** - string
+    - **reset** - string
+- **stateNames** - contains keys to values of state
+    - **value** - string
     - **[key of State]** - string, fields passed to payloadMap
     - **[key of State][innerKey of State[key]][...]** - string, fields of nested payloadMap object, returns generated key or own key if field wasn't declared.
 
@@ -420,14 +442,14 @@ Call returns action that can be dispatched to reset store to initial state.
 
 *ReadOnly*. Contains initialState of all injected reducers (merged)
 
-### createReduxPack._generator
+### createReduxPack._generators
 
-*ReadOnly*. Contains default generator object.
+*ReadOnly*. Contains default generators for request and simple packages.
 
 ## ToDo list
 - [x] Expose merge for generators
 - [x] Merge results of merged reducers
 - [x] Resolve payloadMap to support nested payload object
+- [ ] PayloadMap for run and error actions
 - [ ] Provide utils to work with nested payloadMap within generators
 - [ ] Injection to Root Reducer for global actions
-- [ ] PayloadMap for run and error actions

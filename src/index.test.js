@@ -120,7 +120,7 @@ const {
 } = createReduxPack({
   name: 'PackWithGenerator',
   reducerName: reducerName + 4,
-  resultInitial: [],
+  defaultInitial: [],
 }).withGenerator(
   mergeGenerators(
     {
@@ -166,6 +166,36 @@ const {
     },
   ),
 );
+
+const {
+  selectors: simplePackSelectors,
+  stateNames: simplePackStateNames,
+  actions: simplePackActions,
+  actionNames: simplePackActionNames,
+} = createReduxPack({
+  name: 'simplePack',
+  reducerName: reducerName + 5,
+  defaultInitial: -10,
+  template: 'simple',
+  payloadMap: {
+    counter: {
+      key: '',
+      initial: 0,
+      fallback: 0,
+      modifyValue: (val, prevValue) => {
+        console.log({ val, prevValue });
+        return prevValue + val;
+      },
+    },
+    setter: {
+      ofValue: {
+        key: '',
+        initial: 0,
+        fallback: 420,
+      },
+    },
+  },
+});
 
 test('check name change and generations', () => {
   expect(packName).not.toEqual(uniqueName);
@@ -276,6 +306,13 @@ test('check store configuration', () => {
       somethingCool: 'not quite',
       somethingElse: 'not cool',
     },
+    [reducerName + 5]: {
+      [simplePackStateNames.value]: -10,
+      [simplePackStateNames.counter]: 0,
+      [simplePackStateNames.setter]: {
+        [simplePackStateNames.setter.ofValue]: 0,
+      },
+    },
   });
 });
 
@@ -316,22 +353,22 @@ test('check store manipulations', () => {
 });
 
 test('check pack reducer and initial state injection', async () => {
-  expect(Object.keys(createReduxPack._reducers)).toHaveLength(3);
-  expect(Object.keys(createReduxPack._initialState)).toHaveLength(3);
+  expect(Object.keys(createReduxPack._reducers)).toHaveLength(4);
+  expect(Object.keys(createReduxPack._initialState)).toHaveLength(4);
   expect(Object.keys(createReduxPack._reducers[reducerName])).toHaveLength(3);
   expect(Object.keys(createReduxPack._initialState[reducerName])).toHaveLength(3);
 
   createReduxPack({ name: 'AnotherPack', reducerName });
 
-  expect(Object.keys(createReduxPack._reducers)).toHaveLength(3);
-  expect(Object.keys(createReduxPack._initialState)).toHaveLength(3);
+  expect(Object.keys(createReduxPack._reducers)).toHaveLength(4);
+  expect(Object.keys(createReduxPack._initialState)).toHaveLength(4);
   expect(Object.keys(createReduxPack._reducers[reducerName])).toHaveLength(6);
   expect(Object.keys(createReduxPack._initialState[reducerName])).toHaveLength(6);
 
   createReduxPack({ name: 'AnotherPackIntoAnotherReducer', reducerName: reducerName + 1 });
 
-  expect(Object.keys(createReduxPack._reducers)).toHaveLength(4);
-  expect(Object.keys(createReduxPack._initialState)).toHaveLength(4);
+  expect(Object.keys(createReduxPack._reducers)).toHaveLength(5);
+  expect(Object.keys(createReduxPack._initialState)).toHaveLength(5);
   expect(Object.keys(createReduxPack._reducers[reducerName + 1])).toHaveLength(3);
   expect(Object.keys(createReduxPack._initialState[reducerName + 1])).toHaveLength(3);
 });
@@ -350,8 +387,8 @@ test('check tool reducer and initial state injection', async () => {
     },
   );
 
-  expect(Object.keys(createReduxPack._reducers)).toHaveLength(4);
-  expect(Object.keys(createReduxPack._initialState)).toHaveLength(4);
+  expect(Object.keys(createReduxPack._reducers)).toHaveLength(5);
+  expect(Object.keys(createReduxPack._initialState)).toHaveLength(5);
   expect(Object.keys(createReduxPack._reducers[reducerName])).toHaveLength(7);
   expect(Object.keys(createReduxPack._initialState[reducerName])).toHaveLength(9);
 
@@ -368,8 +405,8 @@ test('check tool reducer and initial state injection', async () => {
     },
   );
 
-  expect(Object.keys(createReduxPack._reducers)).toHaveLength(5);
-  expect(Object.keys(createReduxPack._initialState)).toHaveLength(5);
+  expect(Object.keys(createReduxPack._reducers)).toHaveLength(6);
+  expect(Object.keys(createReduxPack._initialState)).toHaveLength(6);
   expect(Object.keys(createReduxPack._reducers[reducerName + 2])).toHaveLength(1);
   expect(Object.keys(createReduxPack._initialState[reducerName + 2])).toHaveLength(3);
 });
@@ -543,11 +580,68 @@ test('check mergeGenerators', () => {
 test('check reducer update freeze', () => {
   createReduxPack.freezeReducerUpdates();
   expect(createReduxPack.preventReducerUpdates).toEqual(true);
-  createReduxPack({ reducerName: reducerName + 5, name: 'FreezeCheck' });
-  expect(Object.keys(state())).toHaveLength(5);
-  createReduxPack.releaseReducerUpdates();
+  createReduxPack({ reducerName: reducerName + 7, name: 'FreezeCheck' });
   expect(Object.keys(state())).toHaveLength(6);
+  createReduxPack.releaseReducerUpdates();
+  expect(Object.keys(state())).toHaveLength(7);
   expect(createReduxPack.preventReducerUpdates).toEqual(false);
+});
+
+test('check simple template \\w store manipulations', () => {
+  expect(simplePackStateNames).toBeDefined();
+  expect(simplePackStateNames.value).toBeDefined();
+  expect(simplePackStateNames.counter).toBeDefined();
+  expect(simplePackStateNames.setter).toBeDefined();
+  expect(simplePackStateNames.setter.ofValue).toBeDefined();
+  expect(simplePackActions).toBeDefined();
+  expect(simplePackActions.set).toBeDefined();
+  expect(simplePackActions.reset).toBeDefined();
+  expect(simplePackSelectors.value).toBeDefined();
+  expect(simplePackSelectors.counter).toBeDefined();
+  expect(simplePackSelectors.setter).toBeDefined();
+  expect(simplePackSelectors.setter.ofValue).toBeDefined();
+  expect(simplePackActionNames.set).toBeDefined();
+  expect(simplePackActionNames.reset).toBeDefined();
+
+  expect(simplePackSelectors.value(state())).toEqual(-10);
+  expect(simplePackSelectors.counter(state())).toEqual(0);
+  expect(simplePackSelectors.setter(state())).toEqual({ ofValue: 0 });
+  expect(simplePackSelectors.setter.ofValue(state())).toEqual(0);
+
+  createReduxPack._store.dispatch(simplePackActions.set(3));
+
+  expect(simplePackSelectors.value(state())).toEqual(3);
+  expect(simplePackSelectors.counter(state())).toEqual(3);
+  expect(simplePackSelectors.setter(state())).toEqual({ ofValue: 3 });
+  expect(simplePackSelectors.setter.ofValue(state())).toEqual(3);
+
+  createReduxPack._store.dispatch(simplePackActions.set(5));
+
+  expect(simplePackSelectors.value(state())).toEqual(5);
+  expect(simplePackSelectors.counter(state())).toEqual(8);
+  expect(simplePackSelectors.setter(state())).toEqual({ ofValue: 5 });
+  expect(simplePackSelectors.setter.ofValue(state())).toEqual(5);
+
+  createReduxPack._store.dispatch(simplePackActions.set());
+
+  expect(simplePackSelectors.value(state())).toEqual(undefined);
+  expect(simplePackSelectors.counter(state())).toEqual(8);
+  expect(simplePackSelectors.setter(state())).toEqual({ ofValue: 420 });
+  expect(simplePackSelectors.setter.ofValue(state())).toEqual(420);
+
+  createReduxPack._store.dispatch(simplePackActions.set(2));
+
+  expect(simplePackSelectors.value(state())).toEqual(2);
+  expect(simplePackSelectors.counter(state())).toEqual(10);
+  expect(simplePackSelectors.setter(state())).toEqual({ ofValue: 2 });
+  expect(simplePackSelectors.setter.ofValue(state())).toEqual(2);
+
+  createReduxPack._store.dispatch(simplePackActions.reset());
+
+  expect(simplePackSelectors.value(state())).toEqual(-10);
+  expect(simplePackSelectors.counter(state())).toEqual(0);
+  expect(simplePackSelectors.setter(state())).toEqual({ ofValue: 0 });
+  expect(simplePackSelectors.setter.ofValue(state())).toEqual(0);
 });
 
 test('check createAction', () => {
@@ -562,9 +656,15 @@ test('check createAction', () => {
 
 test('check createSelector', () => {
   expect(createSelector).toBeDefined();
-  const selector = createSelector(reducerName + 1, createReduxPack.getLoadingName(testPackName));
-  expect(selector).toBeDefined();
-  expect(selector({ [reducerName + 1]: { [createReduxPack.getLoadingName(testPackName)]: 1 } })).toEqual(1);
+  const selectorFromKeys = createSelector(reducerName + 1, createReduxPack.getLoadingName(testPackName));
+  const selectorFromFns = createSelector(
+    (state) => state[reducerName + 1],
+    (state) => state[createReduxPack.getLoadingName(testPackName)],
+  );
+  expect(selectorFromKeys).toBeDefined();
+  expect(selectorFromFns).toBeDefined();
+  expect(selectorFromKeys({ [reducerName + 1]: { [createReduxPack.getLoadingName(testPackName)]: 1 } })).toEqual(1);
+  expect(selectorFromFns({ [reducerName + 1]: { [createReduxPack.getLoadingName(testPackName)]: 1 } })).toEqual(1);
 });
 
 test('check getRootReducer', () => {
