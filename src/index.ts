@@ -11,14 +11,14 @@ import {
   CreateReduxPackParams,
   CreateReduxPackPayloadMap,
   CRPackReducer,
-  CreateReduxPackReturnType,
   CRPackRequestSelectors,
   CRPackRequestStateNames,
   CreateReduxPackType,
   CRPackPayloadMap,
   CRPackGenObj,
+  /*CreateReduxPackReturnType,
   CRPackRequestGen,
-  CRPackSimpleGen,
+  CRPackSimpleGen,*/
 } from './types';
 import { combineReducers, Reducer } from 'redux';
 import { createSelector as createReSelector, OutputSelector } from 'reselect';
@@ -45,12 +45,12 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
     S = Record<string, any>,
     PayloadRun = void,
     PayloadMain = Record<string, any>,
-    PayloadMap extends CRPackPayloadMap<S> = any,
-    Info extends CreateReduxPackParams<S, PayloadMain, PayloadMap> = any
+    PayloadMap extends CRPackPayloadMap<S> = CRPackPayloadMap<S>,
+    Info extends CreateReduxPackParams<S, PayloadMain, PayloadMap> = CreateReduxPackParams<S, PayloadMain, PayloadMap>
   >(
-    infoRaw: Info,
+    infoRaw: CreateReduxPackParams<S, PayloadMain, PayloadMap> & Info,
   ) => {
-    const info = formatParams(infoRaw);
+    const info = formatParams(infoRaw) as any;
     const { reducerName, template = 'request' } = info;
     const templateGen = createReduxPack._generators[template] || createReduxPack._generators.request;
 
@@ -70,10 +70,10 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
     };
 
     return Object.assign(pack, {
-      withGenerator: <Gen extends CRPackGenObj<S, PayloadMain, PayloadMap> = Record<string, any>>(
+      withGenerator: <Gen extends CRPackGenObj<S, PayloadMain, PayloadMap> = CRPackGenObj<S, PayloadMain, PayloadMap>>(
         generator: CRPackGenObj<S, PayloadMain, PayloadMap>,
-      ) => createReduxPack.withGenerator<S, PayloadRun, PayloadMain, Gen, PayloadMap>(info, generator),
-    }) as CreateReduxPackReturnType<
+      ) => createReduxPack.withGenerator<S, PayloadRun, PayloadMain, Gen, PayloadMap, Info>(info, generator),
+    }) as any /*CreateReduxPackReturnType<
       S,
       PayloadRun,
       PayloadMain,
@@ -81,7 +81,7 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
         ? CRPackSimpleGen<S, PayloadRun, PayloadMain, PayloadMap>
         : CRPackRequestGen<S, PayloadRun, PayloadMain, PayloadMap>,
       PayloadMap
-    >;
+    >*/;
   },
   {
     _reducers: {},
@@ -136,9 +136,10 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
       PayloadRun,
       PayloadMain,
       Gen = Record<string, any>,
-      PayloadMap extends CRPackPayloadMap<S> = any
+      PayloadMap extends CRPackPayloadMap<S> = CRPackPayloadMap<S>,
+      Info extends CreateReduxPackParams<S, PayloadMain, PayloadMap> = CreateReduxPackParams<S, PayloadMain, PayloadMap>
     >(
-      infoRaw: CreateReduxPackParams<S, PayloadMain, PayloadMap>,
+      infoRaw: CreateReduxPackParams<S, PayloadMain, PayloadMap> & Info,
       generator: CRPackGenObj<S, PayloadMain, PayloadMap>,
     ): {
       [P in keyof CreateReduxPackCombinedGenerators<
@@ -152,7 +153,7 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
       const info = formatParams(infoRaw);
       const { reducerName, template = 'request' } = info;
       const templateGen = createReduxPack._generators[template] || createReduxPack._generators.request;
-      const mergedGen = mergeGenerators<any, S, PayloadMain>(templateGen, generator);
+      const mergedGen = mergeGenerators<any, S, PayloadMain, PayloadMap>(templateGen, generator);
       const pack = {
         ...Object.keys(mergedGen).reduce(
           (accum, key) => ({ ...accum, [key]: mergedGen[key](info) }),

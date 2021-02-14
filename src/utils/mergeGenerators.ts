@@ -1,7 +1,12 @@
-import { Action, CreateReduxPackParams } from '../types';
+import { Action, CreateReduxPackParams, CRPackGenObj, CRPackPayloadMap } from '../types';
 
-export const mergeGenerators = <T = Record<string, any>, S = Record<string, any>, PayloadMain = Record<string, any>>(
-  ...generators: Record<string, (info: CreateReduxPackParams<S, PayloadMain>) => any>[]
+export const mergeGenerators = <
+  T = Record<string, any>,
+  S = Record<string, any>,
+  PayloadMain = Record<string, any>,
+  PayloadMap extends CRPackPayloadMap<S> = any
+>(
+  ...generators: CRPackGenObj<S, PayloadMain, PayloadMap>[]
 ): T => {
   try {
     const keyList = [...new Set(generators.reduce<string[]>((accum, gen) => [...accum, ...Object.keys(gen)], []))];
