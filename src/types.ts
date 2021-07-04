@@ -5,6 +5,7 @@ import { OutputSelector } from 'reselect';
 export type CreateReduxPackParams<S, PayloadMain, PayloadMap extends CRPackPayloadMap<S> = CRPackPayloadMap<S>> = {
   name: string;
   defaultInitial?: any;
+  mergeByKey?: string;
   reducerName: string;
   formatPayload?: (data: PayloadMain) => any;
   payloadMap?: CreateReduxPackPayloadMap<S, PayloadMap> & Partial<PayloadMap>;
@@ -89,7 +90,9 @@ export type CRPackRequestActionNames = { run: string; success: string; fail: str
 
 export type CRPackSimpleActionNames = { set: string; reset: string };
 
-export type CreateReduxPackAction<DT, RT = DT> = ActionCreatorWithPreparedPayload<[DT], RT>;
+export type CreateReduxPackAction<DT, RT = DT> = ActionCreatorWithPreparedPayload<[DT], RT> & {
+  instances: { [key: string]: ActionCreatorWithPreparedPayload<[DT], RT> };
+};
 
 export type CRPackRequestActions<S, PayloadRun, PayloadMain> = {
   run: CreateReduxPackAction<PayloadRun, PayloadRun>;
@@ -118,7 +121,7 @@ type CreateReduxPackSelector<S, PayloadMap extends CRPackPayloadMap<S>> = {
 };
 
 export type CRPackRequestSelectors<S, PayloadMap extends CRPackPayloadMap<S> = any> = {
-  isLoading: OutputSelector<any, boolean, any>;
+  isLoading: OutputSelector<any, boolean, any> & { instances: Record<string, OutputSelector<any, boolean, any>> };
   error: OutputSelector<any, null | string, any>;
   result: OutputSelector<any, S, any>;
 } & CreateReduxPackSelector<S, PayloadMap>;
@@ -209,7 +212,7 @@ export type CreateReduxPackFn = <
   PayloadMap extends CRPackPayloadMap<S> = any,
   Info extends CreateReduxPackParams<S, PayloadMain, PayloadMap> = CreateReduxPackParams<S, PayloadMain, PayloadMap>
 >(
-  info: CreateReduxPackParams<S, PayloadMain, PayloadMap> & Info,
+  info: CreateReduxPackParams<S, PayloadMain, PayloadMap> & Partial<Info>,
 ) => CreateReduxPackReturnType<
   S,
   PayloadRun,
@@ -233,6 +236,7 @@ export type CreateReduxPackType = {
   getResultName: (name: string) => string;
   getErrorName: (name: string) => string;
   getKeyName: (name: string, key: string) => string;
+  getNameWithInstance: (name: string, instance?: string) => string;
   _generators: Record<string, CreateReduxPackGenerator>;
   _reducers: Record<string, CRPackReducer>;
   _initialState: CRPackInitialState;

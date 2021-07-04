@@ -8,3 +8,4 @@ export * from './resetAction';
 export * from './hasCRPackName';
 export * from './makeKeysReadable';
 export * from './payloadMappers';
+export * from './nameGetters';

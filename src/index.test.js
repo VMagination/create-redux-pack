@@ -10,6 +10,7 @@ import createReduxPack, {
   mergeGenerators,
   makeKeysReadable,
 } from './index';
+import { mergePayloadWithResult } from './utils/mergePayloadWithResult';
 
 const state = () => createReduxPack._store.getState();
 
@@ -183,7 +184,6 @@ const {
       initial: 0,
       fallback: 0,
       modifyValue: (val, prevValue) => {
-        console.log({ val, prevValue });
         return prevValue + val;
       },
     },
@@ -257,6 +257,13 @@ test('check package reducer', () => {
   expect(testPackReducer[testPackActions.run]).toBeDefined();
   expect(testPackReducer[testPackActions.success]).toBeDefined();
   expect(testPackReducer[testPackActions.fail]).toBeDefined();
+});
+
+test('check package instances', () => {
+  expect(testPackSelectors.isLoading.instances).toBeDefined();
+  expect(testPackSelectors.isLoading.instances.instance1).toBeDefined();
+  expect(testPackActions.run.instances).toBeDefined();
+  expect(testPackActions.run.instances.instance1).toBeDefined();
 });
 
 let store;
@@ -349,6 +356,76 @@ test('check store manipulations', () => {
 
   expect(testPackSelectors.isLoading(state())).toEqual(false);
   expect(testPackSelectors.error(state())).toEqual(null);
+  expect(testPackSelectors.result(state())).toEqual(null);
+});
+
+test('check store manipulations \\w instances', () => {
+  expect(testPackSelectors.isLoading(state())).toEqual(false);
+  expect(testPackSelectors.isLoading.instances.instance1(state())).toEqual(false);
+  expect(testPackSelectors.isLoading.instances.instance2(state())).toEqual(false);
+  expect(testPackSelectors.result(state())).toEqual(null);
+
+  createReduxPack._store.dispatch(testPackActions.run.instances.instance1());
+
+  expect(testPackSelectors.isLoading(state())).toEqual(false);
+  expect(testPackSelectors.isLoading.instances.instance1(state())).toEqual(true);
+  expect(testPackSelectors.isLoading.instances.instance2(state())).toEqual(false);
+  expect(testPackSelectors.result(state())).toEqual(null);
+
+  createReduxPack._store.dispatch(testPackActions.run());
+
+  expect(testPackSelectors.isLoading(state())).toEqual(true);
+  expect(testPackSelectors.isLoading.instances.instance1(state())).toEqual(true);
+  expect(testPackSelectors.isLoading.instances.instance2(state())).toEqual(false);
+  expect(testPackSelectors.result(state())).toEqual(null);
+
+  createReduxPack._store.dispatch(testPackActions.run.instances.instance2());
+
+  expect(testPackSelectors.isLoading(state())).toEqual(true);
+  expect(testPackSelectors.isLoading.instances.instance1(state())).toEqual(true);
+  expect(testPackSelectors.isLoading.instances.instance2(state())).toEqual(true);
+  expect(testPackSelectors.result(state())).toEqual(null);
+
+  createReduxPack._store.dispatch(testPackActions.success.instances.instance2({ i: 2 }));
+
+  expect(testPackSelectors.isLoading(state())).toEqual(true);
+  expect(testPackSelectors.isLoading.instances.instance1(state())).toEqual(true);
+  expect(testPackSelectors.isLoading.instances.instance2(state())).toEqual(false);
+  expect(testPackSelectors.result(state())).toEqual({ i: 2 });
+
+  createReduxPack._store.dispatch(testPackActions.success({ i: 0 }));
+
+  expect(testPackSelectors.isLoading(state())).toEqual(false);
+  expect(testPackSelectors.isLoading.instances.instance1(state())).toEqual(true);
+  expect(testPackSelectors.isLoading.instances.instance2(state())).toEqual(false);
+  expect(testPackSelectors.result(state())).toEqual({ i: 0 });
+
+  createReduxPack._store.dispatch(testPackActions.run.instances.instance2());
+
+  expect(testPackSelectors.isLoading(state())).toEqual(false);
+  expect(testPackSelectors.isLoading.instances.instance1(state())).toEqual(true);
+  expect(testPackSelectors.isLoading.instances.instance2(state())).toEqual(true);
+  expect(testPackSelectors.result(state())).toEqual({ i: 0 });
+
+  createReduxPack._store.dispatch(testPackActions.success.instances.instance1({ i: 1 }));
+
+  expect(testPackSelectors.isLoading(state())).toEqual(false);
+  expect(testPackSelectors.isLoading.instances.instance1(state())).toEqual(false);
+  expect(testPackSelectors.isLoading.instances.instance2(state())).toEqual(true);
+  expect(testPackSelectors.result(state())).toEqual({ i: 1 });
+
+  createReduxPack._store.dispatch(testPackActions.success.instances.instance2({ i: 2 }));
+
+  expect(testPackSelectors.isLoading(state())).toEqual(false);
+  expect(testPackSelectors.isLoading.instances.instance1(state())).toEqual(false);
+  expect(testPackSelectors.isLoading.instances.instance2(state())).toEqual(false);
+  expect(testPackSelectors.result(state())).toEqual({ i: 2 });
+
+  createReduxPack._store.dispatch(resetAction());
+
+  expect(testPackSelectors.isLoading(state())).toEqual(false);
+  expect(testPackSelectors.isLoading.instances.instance1(state())).toEqual(false);
+  expect(testPackSelectors.isLoading.instances.instance2(state())).toEqual(false);
   expect(testPackSelectors.result(state())).toEqual(null);
 });
 
@@ -652,6 +729,106 @@ test('check createAction', () => {
   expect(action({ a: 1 })).toEqual({ type: 'text', payload: { a: 1 } });
   const actionWithPrepare = createAction('text', ({ a }) => a);
   expect(actionWithPrepare({ a: 1 })).toEqual({ type: 'text', payload: 1 });
+});
+
+test('check mergePayloadWithResult', () => {
+  expect(mergePayloadWithResult).toBeDefined();
+  expect(
+    mergePayloadWithResult(
+      {},
+      [
+        { id: 1, f: 1 },
+        { id: 2, f: 3 },
+      ],
+      'id',
+    ),
+  ).toEqual({ 1: { id: 1, f: 1 }, 2: { id: 2, f: 3 } });
+  expect(
+    mergePayloadWithResult(
+      { 1: { id: 1, f: 0 } },
+      [
+        { id: 1, f: 1 },
+        { id: 2, f: 3 },
+      ],
+      'id',
+    ),
+  ).toEqual({ 1: { id: 1, f: 1 }, 2: { id: 2, f: 3 } });
+  expect(mergePayloadWithResult({ 1: { id: 1, f: 0 } }, { id: 3, f: 2 }, 'id')).toEqual({
+    1: { id: 1, f: 0 },
+    3: { id: 3, f: 2 },
+  });
+  expect(
+    mergePayloadWithResult(
+      { 1: { id: 1, f: 0 } },
+      {
+        4: {
+          id: 3,
+          f: 2,
+        },
+      },
+      'id',
+    ),
+  ).toEqual({
+    1: { id: 1, f: 0 },
+    3: { id: 3, f: 2 },
+  });
+  expect(
+    mergePayloadWithResult(
+      { 1: { id: 1, f: 0 } },
+      {
+        4: {
+          f: 2,
+        },
+      },
+      'id',
+    ),
+  ).toEqual({
+    1: { id: 1, f: 0 },
+    4: { f: 2 },
+  });
+  expect(
+    mergePayloadWithResult(
+      [],
+      [
+        { id: 1, f: 1 },
+        { id: 2, f: 3 },
+      ],
+      'id',
+    ),
+  ).toEqual([
+    { id: 1, f: 1 },
+    { id: 2, f: 3 },
+  ]);
+  expect(mergePayloadWithResult([{ id: 1, f: 1 }], [{ id: 2, f: 3 }], 'id')).toEqual([
+    { id: 1, f: 1 },
+    { id: 2, f: 3 },
+  ]);
+  expect(
+    mergePayloadWithResult(
+      [{ id: 1, f: 1 }],
+      [
+        { id: 1, f: 3 },
+        { id: 2, f: 2 },
+      ],
+      'id',
+    ),
+  ).toEqual([
+    { id: 1, f: 3 },
+    { id: 2, f: 2 },
+  ]);
+  expect(mergePayloadWithResult([{ id: 1, f: 1 }], { id: 2, f: 2 }, 'id')).toEqual([
+    { id: 1, f: 1 },
+    { id: 2, f: 2 },
+  ]);
+  expect(mergePayloadWithResult([{ id: 1, f: 1 }], { id: 1, f: 2 }, 'id')).toEqual([{ id: 1, f: 2 }]);
+  expect(mergePayloadWithResult([{ id: 1, f: 1 }], { f: 2 }, 'id')).toEqual([{ id: 1, f: 1 }, { f: 2 }]);
+  expect(mergePayloadWithResult([{ id: 1, f: 1 }], [{ f: 2 }, { id: 2, f: 3 }, { id: 1, f: 2 }], 'id')).toEqual([
+    { f: 2 },
+    { id: 2, f: 3 },
+    { id: 1, f: 2 },
+  ]);
+  expect(mergePayloadWithResult([{ id: 1, f: 1 }], undefined, 'id')).toEqual([{ id: 1, f: 1 }]);
+  expect(mergePayloadWithResult([{ id: 1, f: 1 }], 123)).toEqual(123);
 });
 
 test('check createSelector', () => {

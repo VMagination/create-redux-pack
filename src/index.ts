@@ -16,9 +16,6 @@ import {
   CreateReduxPackType,
   CRPackPayloadMap,
   CRPackGenObj,
-  /*CreateReduxPackReturnType,
-  CRPackRequestGen,
-  CRPackSimpleGen,*/
 } from './types';
 import { combineReducers, Reducer } from 'redux';
 import { createSelector as createReSelector, OutputSelector } from 'reselect';
@@ -30,13 +27,24 @@ import {
   mergeGenerators,
   formatParams,
   resetAction,
-  hasCRPackName,
   makeKeysReadable,
   addMappedPayloadToState,
   getStateNames,
   getInitial,
   getSelectors,
+  getRunName,
+  getSuccessName,
+  getSetName,
+  getResetName,
+  getFailName,
+  getLoadingName,
+  getResultName,
+  getValueName,
+  getErrorName,
+  getKeyName,
+  getNameWithInstance,
 } from './utils';
+import { mergePayloadWithResult } from './utils/mergePayloadWithResult';
 
 const loggerMatcher: any = () => true;
 
@@ -239,9 +247,35 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
         }: CreateReduxPackParams<S, PayloadMain, PayloadMap>) => {
           const getReducerState = (state: any) => state[reducerName];
           return {
-            isLoading: createReSelector<any, any, boolean>(
-              getReducerState,
-              (state) => state[createReduxPack.getLoadingName(name)],
+            isLoading: Object.assign(
+              createReSelector<any, any, boolean>(
+                getReducerState,
+                (state) => state[createReduxPack.getLoadingName(name)],
+              ),
+              {
+                instances: new Proxy(
+                  {},
+                  {
+                    get: (t, p, s) => {
+                      const result = Reflect.get(t, p, s);
+                      if (result) return result;
+                      if (typeof p !== 'string') return result;
+                      Reflect.set(
+                        t,
+                        p,
+                        createReSelector<any, any, boolean>(
+                          getReducerState,
+                          (state) =>
+                            state[createReduxPack.getNameWithInstance(createReduxPack.getLoadingName(name), p)] ??
+                            false,
+                        ),
+                        s,
+                      );
+                      return Reflect.get(t, p, s);
+                    },
+                  },
+                ),
+              },
             ),
             result: createReSelector<any, any, S>(
               getReducerState,
@@ -279,24 +313,29 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
         }),
         reducer: <S, PayloadMain, PayloadRun, PayloadMap extends CRPackPayloadMap<S>>({
           name,
+          mergeByKey,
           payloadMap = {} as CreateReduxPackPayloadMap<S, PayloadMap> & PayloadMap,
         }: CreateReduxPackParams<S, PayloadMain, PayloadMap>): CRPackReducer<PayloadMain, PayloadRun> => ({
-          [createReduxPack.getRunName(name)]: createReducerCase(() => ({
+          [createReduxPack.getRunName(name)]: createReducerCase((_state, { meta }) => ({
             [createReduxPack.getErrorName(name)]: null,
-            [createReduxPack.getLoadingName(name)]: true,
+            [createReduxPack.getNameWithInstance(createReduxPack.getLoadingName(name), meta?.instance)]: true,
           })),
-          [createReduxPack.getSuccessName(name)]: createReducerCase((state, { payload }) => {
+          [createReduxPack.getSuccessName(name)]: createReducerCase((state, { payload, meta }) => {
             const newState = {
-              [createReduxPack.getLoadingName(name)]: false,
+              [createReduxPack.getNameWithInstance(createReduxPack.getLoadingName(name), meta?.instance)]: false,
               [createReduxPack.getErrorName(name)]: null,
-              [createReduxPack.getResultName(name)]: payload,
+              [createReduxPack.getResultName(name)]: mergePayloadWithResult(
+                state[createReduxPack.getResultName(name)],
+                payload,
+                mergeByKey,
+              ),
             };
             addMappedPayloadToState(newState, payloadMap, name, payload, state);
             return newState;
           }),
-          [createReduxPack.getFailName(name)]: createReducerCase((_state, action) => ({
-            [createReduxPack.getErrorName(name)]: action.payload?.error || action.payload,
-            [createReduxPack.getLoadingName(name)]: false,
+          [createReduxPack.getFailName(name)]: createReducerCase((_state, { payload, meta }) => ({
+            [createReduxPack.getErrorName(name)]: (payload?.error || payload) ?? null,
+            [createReduxPack.getNameWithInstance(createReduxPack.getLoadingName(name), meta?.instance)]: false,
           })),
         }),
       },
@@ -344,12 +383,17 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
         }),
         reducer: <S, PayloadMain, PayloadRun, PayloadMap extends CRPackPayloadMap<S>>({
           name,
+          mergeByKey,
           defaultInitial = null,
           payloadMap = {} as CreateReduxPackPayloadMap<S, PayloadMap> & PayloadMap,
         }: CreateReduxPackParams<S, PayloadMain, PayloadMap>): CRPackReducer<PayloadMain, PayloadRun> => ({
           [createReduxPack.getSetName(name)]: createReducerCase((state, { payload }) => {
             const newState = {
-              [createReduxPack.getValueName(name)]: payload,
+              [createReduxPack.getValueName(name)]: mergePayloadWithResult(
+                state[createReduxPack.getValueName(name)],
+                payload,
+                mergeByKey,
+              ),
             };
             addMappedPayloadToState(newState, payloadMap, name, payload, state);
             return newState;
@@ -361,16 +405,17 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
         }),
       },
     } as Record<string, CreateReduxPackGenerator>,
-    getRunName: (name: string) => `run ${name}`,
-    getSuccessName: (name: string) => `success ${name}`,
-    getSetName: (name: string) => `set ${name}`,
-    getResetName: (name: string) => `reset ${name}`,
-    getFailName: (name: string) => `fail ${name}`,
-    getLoadingName: (name: string) => `isLoading ${name}`,
-    getResultName: (name: string) => `result ${name}`,
-    getValueName: (name: string) => `value ${name}`,
-    getErrorName: (name: string) => `error ${name}`,
-    getKeyName: (name: string, key: string) => (hasCRPackName(key) ? key : `${key} of ${name}`),
+    getRunName,
+    getSuccessName,
+    getSetName,
+    getResetName,
+    getFailName,
+    getLoadingName,
+    getResultName,
+    getValueName,
+    getErrorName,
+    getKeyName,
+    getNameWithInstance,
   },
 );
 
@@ -406,6 +451,27 @@ const createReducerOn = <S>(
 ): void => {
   createReduxPack.injectReducerInto(reducerName || 'UnspecifiedReducer', actionMap || {}, initialState || {});
 };
+
+/*
+const asd = createReduxPack({
+  name: 'PackWithPayload + modify',
+  reducerName: 'reducerName' + 3,
+  formatPayload: (data: { passedItem1: string | null }) => data,
+  payloadMap: {
+    item4: {
+      formatSelector: ({ sad }) => sad,
+      sad: {
+        key: 'passedItem1',
+        initial: 'sad' as string,
+        fallback: null,
+      },
+    },
+  },
+});
+
+const a = asd.selectors.isLoading.instances.asd({});
+const a1 = asd.actions.run.instances.asd();
+*/
 
 export {
   createSelector,

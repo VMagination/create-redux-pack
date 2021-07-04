@@ -189,6 +189,11 @@ CRPack fully and internally supports lazy loading. If you are using webpack redu
 
 > Lazy loading only works if store was configured using provided configureStore utility.
 
+
+## Instances for loading
+
+It's annoying how sometimes fetching data updates loading everywhere showing loader when and where you did not intend to. With action instances you can separate loaders accordingly.
+
 ## Dynamic Logger
 
 CRPack has integrated logger which can be enabled and disabled from any part of your code. It will only display type and payload of dispatched actions but practice shows it is enough and if it isn't you should use redux devtools, the main purpose of this logger is to display actions that are dispatched on current page / screen to ease debugging a bit.
@@ -233,6 +238,7 @@ Creates pack of redux components with default generator
 - **name** - *string*, Required, pack name, will be modified to be unique
 - **reducerName** - *string*, Required, name of reducer, will be used to add or inject logic into specified reducer
 - **defaultInitial** - *any*, Optional, initial value of default result/value, fallbacks to *null*, should be defined if you are using result/value for state management
+- **mergeByKey** - *string*, Optional, if not empty will make reducers try to merge default value with payload using key as identificator, initial and payload should be an array or an object otherwise no merge will commence
 - **formatPayload** - *(data: PayloadMain) => State*, Optional, formats success payload to match expected State
 - **payloadMap** - *CreateReduxPackPayloadMap<State>*, Optional, object of extra fields that will be appended to state
 - **template** - *'request' | 'simple'*, Optional, template to use when creating a package, fallbacks to 'request'.
@@ -257,8 +263,10 @@ Options:
     - **run** - (payload: PayloadRun) => Action
     - **success** - (payload: PayloadMain) => Action
     - **fail** - (error: string) => Action
+    - **&ast;.instances.&ast;** - according action with injected instance
 - **selectors** - contains selectors for generated fields of state
     - **isLoading** - Selector for loading
+    - **isLoading.instances.&ast;** - Selectors for instanced loadings
     - **error** - Selector for error
     - **result** - Selector for result
     - **[key of State]** - Selectors for each field of payloadMap
@@ -450,6 +458,8 @@ Call returns action that can be dispatched to reset store to initial state.
 - [x] Expose merge for generators
 - [x] Merge results of merged reducers
 - [x] Resolve payloadMap to support nested payload object
+- [x] Add instances for loading
+- [ ] Merge for reducer values / results
 - [ ] PayloadMap for run and error actions
 - [ ] Provide utils to work with nested payloadMap within generators
 - [ ] Injection to Root Reducer for global actions

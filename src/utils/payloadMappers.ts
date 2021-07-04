@@ -1,13 +1,13 @@
 import { CreateReduxPackPayloadMap } from '../types';
 import { createSelector as createReSelector } from 'reselect';
-import createReduxPack, { makeKeysReadable } from '../index';
 import { getReadableKey } from './getReadableKey';
+import { getKeyName } from './nameGetters';
+import { makeKeysReadable } from './makeKeysReadable';
 
 const shouldRecursionEnd = (payloadMapByKey: any) => 'initial' in payloadMapByKey;
 
 const getIt = (obj: any, path?: string, defaultValue: any = undefined) => {
   if (path === '') {
-    console.log(obj, defaultValue);
     return obj ?? defaultValue;
   }
   if ((obj && typeof obj !== 'object') || !obj) return defaultValue;
@@ -34,7 +34,7 @@ export const addStateParam = (
   const modification = payloadMapByKey?.modifyValue;
   const payloadValue =
     (param ?? null) !== null ? getIt(payload, param, payloadMapByKey?.fallback) : payload ?? payloadMapByKey?.fallback;
-  const stateKey = createReduxPack.getKeyName(name, `${prefix}${key}`);
+  const stateKey = getKeyName(name, `${prefix}${key}`);
   obj[stateKey] = modification ? modification(payloadValue, state[stateKey]) : payloadValue;
 };
 
@@ -53,7 +53,7 @@ export const addMappedPayloadToState = <S = Record<string, any>>(
       return addStateParam(obj, key, payloadMap, name, payload, state, prefix);
     }
     const param = payloadMapByKey?.key;
-    const innerKey = createReduxPack.getKeyName(name, `${prefix}${key}`);
+    const innerKey = getKeyName(name, `${prefix}${key}`);
     obj[innerKey] = { ...state[innerKey], ...(obj[innerKey] || {}) };
     const payloadParam = param ? getIt(payload, param) : payload;
     const nextPrefix = `${prefix}${getReadableKey(key)}.`;
@@ -76,7 +76,7 @@ const addMappedInitialToState = <S = Record<string, any>>(
   const keys = Object.keys(payloadMap).filter((key) => key !== 'key');
   keys.forEach((key) => {
     const payloadMapByKey: any = payloadMap[key as keyof S];
-    const innerKey = createReduxPack.getKeyName(name, `${prefix}${key}`);
+    const innerKey = getKeyName(name, `${prefix}${key}`);
     if (shouldRecursionEnd(payloadMapByKey)) {
       obj[innerKey] = payloadMapByKey.initial;
       return;
@@ -109,13 +109,13 @@ const addMappedStateNames = <S = Record<string, any>>(
   keys.forEach((key) => {
     const payloadMapByKey: any = payloadMap[key as keyof S];
     if (shouldRecursionEnd(payloadMapByKey)) {
-      obj[key] = wrapStateName(createReduxPack.getKeyName(name, `${prefix}${key}`));
+      obj[key] = wrapStateName(getKeyName(name, `${prefix}${key}`));
       return;
     }
     const innerKeys = {};
     const nextPrefix = `${prefix}${getReadableKey(key)}.`;
     addMappedStateNames(innerKeys, payloadMapByKey, name, nextPrefix);
-    obj[key] = Object.assign(createReduxPack.getKeyName(name, `${prefix}${key}`), innerKeys);
+    obj[key] = Object.assign(getKeyName(name, `${prefix}${key}`), innerKeys);
   });
 };
 
@@ -166,7 +166,7 @@ const addMappedSelectors = <S = Record<string, any>>(
   const keys = Object.keys(payloadMap).filter((key) => key !== 'key');
   keys.forEach((key) => {
     const payloadMapByKey: any = payloadMap[key as keyof S];
-    const innerKey = createReduxPack.getKeyName(name, `${prefix}${key}`);
+    const innerKey = getKeyName(name, `${prefix}${key}`);
     if (shouldRecursionEnd(payloadMapByKey)) {
       const format = payloadMapByKey?.formatSelector || ((state: any) => state);
       obj[key] = wrapSelector(prevSelector, innerKey, format);

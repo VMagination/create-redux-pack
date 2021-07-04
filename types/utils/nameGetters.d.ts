@@ -1,0 +1,11 @@
+export declare const getRunName: (name: string) => string;
+export declare const getSuccessName: (name: string) => string;
+export declare const getSetName: (name: string) => string;
+export declare const getResetName: (name: string) => string;
+export declare const getFailName: (name: string) => string;
+export declare const getLoadingName: (name: string) => string;
+export declare const getResultName: (name: string) => string;
+export declare const getValueName: (name: string) => string;
+export declare const getErrorName: (name: string) => string;
+export declare const getKeyName: (name: string, key: string) => string;
+export declare const getNameWithInstance: (name: string, instance?: string | undefined) => string;
