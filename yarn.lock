@@ -1354,7 +1354,7 @@
   dependencies:
     "@types/yargs-parser" "*"
 
-"@typescript-eslint/eslint-plugin-tslint@^4.8.2":
+"@typescript-eslint/eslint-plugin-tslint@4.12.0":
   version "4.12.0"
   resolved "https://registry.npmjs.org/@typescript-eslint/eslint-plugin-tslint/-/eslint-plugin-tslint-4.12.0.tgz#b893b6da9542938981d6aa6889b6e67ba97dffe9"
   integrity sha512-ZkcW+2d8getYROHc+aKQYW+vJHMn5FbnFk6AodrvRlIFX/JsFY6Oms5Yw4RzamBa/Ez9W6yVRzLgMDsUkMFKVg==
@@ -1362,7 +1362,7 @@
     "@typescript-eslint/experimental-utils" "4.12.0"
     lodash "^4.17.15"
 
-"@typescript-eslint/eslint-plugin@^4.8.2":
+"@typescript-eslint/eslint-plugin@4.12.0":
   version "4.12.0"
   resolved "https://registry.npmjs.org/@typescript-eslint/eslint-plugin/-/eslint-plugin-4.12.0.tgz#00d1b23b40b58031e6d7c04a5bc6c1a30a2e834a"
   integrity sha512-wHKj6q8s70sO5i39H2g1gtpCXCvjVszzj6FFygneNFyIAxRvNSVz9GML7XpqrB9t7hNutXw+MHnLN/Ih6uyB8Q==
@@ -1387,7 +1387,7 @@
     eslint-scope "^5.0.0"
     eslint-utils "^2.0.0"
 
-"@typescript-eslint/parser@^4.8.2":
+"@typescript-eslint/parser@4.12.0":
   version "4.12.0"
   resolved "https://registry.npmjs.org/@typescript-eslint/parser/-/parser-4.12.0.tgz#e1cf30436e4f916c31fcc962158917bd9e9d460a"
   integrity sha512-9XxVADAo9vlfjfoxnjboBTxYOiNY93/QuvcPgsiKvHxW6tOZx1W4TvkIQ2jB3k5M0pbFP5FlXihLK49TjZXhuQ==
@@ -5588,10 +5588,10 @@ typedarray-to-buffer@^3.1.5:
   dependencies:
     is-typedarray "^1.0.0"
 
-typescript@4.2.0-dev.20210206:
-  version "4.2.0-dev.20210206"
-  resolved "https://registry.npmjs.org/typescript/-/typescript-4.2.0-dev.20210206.tgz#f3aa6362c99a05a3f33658ad1373b6b8bbea57d2"
-  integrity sha512-zi06lKwWp8e9OKgtSBB0ARC0PWbYWdzuxLlI+bC56f6BRK7GVX+2C/CIi/ynUePL4rZyP+gcDqrUYaYLiLhFbQ==
+typescript@^4.4.0-beta:
+  version "4.4.0-beta"
+  resolved "https://registry.npmjs.org/typescript/-/typescript-4.4.0-beta.tgz#a5b8a3a0d260fa5ce84daa3ab58f7102ad19a655"
+  integrity sha512-qMxA8NzN3igwX8Mii7MXGNW+YeFAkUKyKg+x4F1CCFsO36LqISf1EXXSOLDuRIdGjdVvV53grRxfHjOW65YfMA==
 
 unicode-canonical-property-names-ecmascript@^1.0.4:
   version "1.0.4"

@@ -8,7 +8,7 @@ export type CreateReduxPackParams<S, PayloadMain, PayloadMap extends CRPackPaylo
   mergeByKey?: string;
   reducerName: string;
   formatPayload?: (data: PayloadMain) => any;
-  payloadMap?: CreateReduxPackPayloadMap<S, PayloadMap> & Partial<PayloadMap>;
+  payloadMap?: CreateReduxPackPayloadMap<S, PayloadMain, PayloadMap> & Partial<PayloadMap>;
 } & (
   | { template?: 'simple' }
   | {
@@ -23,7 +23,7 @@ export type Action<T> = {
 
 export type CreateReduxPackGeneratorBlock<RT = any> = <
   S = Record<string, any>,
-  PayloadMain = Record<string, any>,
+  PayloadMain = any,
   RTD = Record<string, any>,
   PayloadMap extends CRPackPayloadMap<S> = any,
   Info extends CreateReduxPackParams<S, PayloadMain, PayloadMap> = CreateReduxPackParams<S, PayloadMain, PayloadMap>
@@ -54,20 +54,21 @@ export type CRPackInitialState = Record<string, any>;
 
 export type CRPackPayloadMap<S> = Record<string | keyof S, any>;
 
-type CRPackPayloadMapItem<T, PayloadMap extends CRPackPayloadMap<T>> =
+type CRPackPayloadMapItem<T, PayloadMain, PayloadMap extends CRPackPayloadMap<T>> =
   | {
       initial: T;
       formatSelector?: (state: T) => ReturnType<PayloadMap['formatSelector']>;
-      key?: string;
+      formatPayload?: (payload: PayloadMain) => T;
       fallback?: T;
-      modifyValue?: (payloadValue: any, prevStateValue: T) => T;
+      asd?: PayloadMain;
+      modifyValue?: (payloadValue: T, prevStateValue: T) => T;
     }
-  | ({
-      [K in keyof T]?: CRPackPayloadMapItem<T[K], PayloadMap[K]>;
-    } & { key?: string });
+  | {
+      [K in keyof T]?: CRPackPayloadMapItem<T[K], PayloadMain, PayloadMap[K]>;
+    };
 
-export type CreateReduxPackPayloadMap<S, PayloadMap extends CRPackPayloadMap<S> = any> = {
-  [P in keyof S]?: CRPackPayloadMapItem<S[P], PayloadMap[P]>;
+export type CreateReduxPackPayloadMap<S, PayloadMain = any, PayloadMap extends CRPackPayloadMap<S> = any> = {
+  [P in keyof S]?: CRPackPayloadMapItem<S[P], PayloadMain, PayloadMap[P]>;
 };
 
 type CRPackStateName<S> = S extends Record<string, any>
@@ -94,14 +95,15 @@ export type CreateReduxPackAction<DT, RT = DT> = ActionCreatorWithPreparedPayloa
   instances: { [key: string]: ActionCreatorWithPreparedPayload<[DT], RT> };
 };
 
-export type CRPackRequestActions<S, PayloadRun, PayloadMain> = {
+export type CRPackRequestActions<_S, PayloadRun, PayloadMain> = {
   run: CreateReduxPackAction<PayloadRun, PayloadRun>;
-  success: CreateReduxPackAction<PayloadMain, PayloadMain | S>;
+  success: CreateReduxPackAction<PayloadMain, PayloadMain>;
+  d: PayloadMain;
   fail: CreateReduxPackAction<string, string>;
 };
 
-export type CRPackSimpleActions<S, PayloadMain> = {
-  set: CreateReduxPackAction<PayloadMain, PayloadMain | S>;
+export type CRPackSimpleActions<_S, PayloadMain> = {
+  set: CreateReduxPackAction<PayloadMain, PayloadMain>;
   reset: CreateReduxPackAction<void, void>;
 };
 
@@ -206,9 +208,9 @@ export type CreateReduxPackReturnType<
 };
 
 export type CreateReduxPackFn = <
-  S = Record<string, any>,
+  S = any,
   PayloadRun = void,
-  PayloadMain = Record<string, any>,
+  PayloadMain = any,
   PayloadMap extends CRPackPayloadMap<S> = any,
   Info extends CreateReduxPackParams<S, PayloadMain, PayloadMap> = CreateReduxPackParams<S, PayloadMain, PayloadMap>
 >(
@@ -283,3 +285,17 @@ export type CreateReduxPackCombinedGenerators<
   PayloadMain,
   PayloadMap extends CRPackPayloadMap<S> = any
 > = CreateReduxPackReturnType<S, PayloadRun, PayloadMain, PayloadMap> & Gen;
+
+/*type A<T, PS> = {
+  initial: T;
+  asd?: PS;
+};
+
+export type B<S, PS, D> = {
+  [P in keyof S]?: A<S[P], PS> & { a?: D };
+};
+
+const asd = <S, PS, D>(a: B<S, PS, D>): { a: PS; b: S; c: D } => (a as unknown) as { a: PS; b: S; c: D };
+
+const { a, b, c } = asd({ d: { initial: 1, asd: 'asd', a: null } }); // a - unknown, b - { d: number }, c - unknown
+const w = asd({ d: { initial: 1, asd: 'asd', a: 3 } });*/

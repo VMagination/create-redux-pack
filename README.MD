@@ -239,7 +239,7 @@ Creates pack of redux components with default generator
 - **reducerName** - *string*, Required, name of reducer, will be used to add or inject logic into specified reducer
 - **defaultInitial** - *any*, Optional, initial value of default result/value, fallbacks to *null*, should be defined if you are using result/value for state management
 - **mergeByKey** - *string*, Optional, if not empty will make reducers try to merge default value with payload using key as identificator, initial and payload should be an array or an object otherwise no merge will commence
-- **formatPayload** - *(data: PayloadMain) => State*, Optional, formats success payload to match expected State
+- **formatPayload** - *(data: PayloadMain) => State*, Optional, function to format payload for default value field
 - **payloadMap** - *CreateReduxPackPayloadMap<State>*, Optional, object of extra fields that will be appended to state
 - **template** - *'request' | 'simple'*, Optional, template to use when creating a package, fallbacks to 'request'.
 
@@ -250,8 +250,8 @@ Creates pack of redux components with default generator
 Accepts object with options or nested object with end section containing options, supports keys of  another pack's State.
 
 Options:
-- **key** - *key of PayloadMain*, Optional, **key of success Payload** that will be used to get a value of current field, **fallbacks to State key**, while providing '' empty string results in current payload, **supports lodash's get** ('key.innerKey[0]'), *key of subsection moves payload of that section to that key*
 - **initial** - *State[key of field]*, Required, initial value of this field
+- **formatPayload** - *(payload: PayloadMain) => State[key of field]*, Optional, function to get value for current field from payload
 - **fallback** - *any*, Optional, value that will replace current field value in case falsy payload will be provided to success action. It's just a guard to prevent potential crashes of bad payload.
 - **formatSelector** - *(data: State[key of field]) => any*, Optional, function to format field value for selector to return. **Types have to be specified explicitly** (known issue) *or typescript will throw error on non-primitive types*.
 - **modifyValue** - *(value: any, prevValue?: State[key of field]) => State[key of field]*, Optional, used to set new value according or using previous value.

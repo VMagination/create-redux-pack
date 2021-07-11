@@ -6,43 +6,29 @@ import { makeKeysReadable } from './makeKeysReadable';
 
 const shouldRecursionEnd = (payloadMapByKey: any) => 'initial' in payloadMapByKey;
 
-const getIt = (obj: any, path?: string, defaultValue: any = undefined) => {
-  if (path === '') {
-    return obj ?? defaultValue;
-  }
-  if ((obj && typeof obj !== 'object') || !obj) return defaultValue;
-  const find = (regexp: RegExp) =>
-    (path ?? '')
-      .split(regexp)
-      .filter(Boolean)
-      .reduce((res, key) => (res ?? false ? res[key] : res), obj);
-  const found = find(/[,[\]]+?/) || find(/[,[\].]+?/);
-  return found === undefined || found === obj ? defaultValue : found;
-};
-
 export const addStateParam = (
   obj: Record<string, any>,
   key: string,
   payloadMap: Record<string, any>,
   name: string,
-  payload: Record<string, any>,
+  payload: any,
   state: Record<string, any>,
   prefix = '',
 ): void => {
   const payloadMapByKey = payloadMap[key];
-  const param = payloadMapByKey?.key ?? key;
+  const payloadValue = payloadMapByKey?.formatPayload
+    ? payloadMapByKey.formatPayload(payload) ?? payloadMapByKey?.fallback
+    : payload ?? payloadMapByKey?.fallback;
   const modification = payloadMapByKey?.modifyValue;
-  const payloadValue =
-    (param ?? null) !== null ? getIt(payload, param, payloadMapByKey?.fallback) : payload ?? payloadMapByKey?.fallback;
   const stateKey = getKeyName(name, `${prefix}${key}`);
   obj[stateKey] = modification ? modification(payloadValue, state[stateKey]) : payloadValue;
 };
 
-export const addMappedPayloadToState = <S = Record<string, any>>(
+export const addMappedPayloadToState = <S = Record<string, any>, PayloadMain = any>(
   obj: Record<string, any>,
   payloadMap: CreateReduxPackPayloadMap<S>,
   name: string,
-  payload: Record<string, any>,
+  payload: PayloadMain,
   state: Record<string, any>,
   prefix = '',
 ): void => {
@@ -52,12 +38,10 @@ export const addMappedPayloadToState = <S = Record<string, any>>(
     if (shouldRecursionEnd(payloadMapByKey)) {
       return addStateParam(obj, key, payloadMap, name, payload, state, prefix);
     }
-    const param = payloadMapByKey?.key;
     const innerKey = getKeyName(name, `${prefix}${key}`);
     obj[innerKey] = { ...state[innerKey], ...(obj[innerKey] || {}) };
-    const payloadParam = param ? getIt(payload, param) : payload;
     const nextPrefix = `${prefix}${getReadableKey(key)}.`;
-    addMappedPayloadToState(obj[innerKey], payloadMapByKey, name, payloadParam, state[innerKey], nextPrefix);
+    addMappedPayloadToState(obj[innerKey], payloadMapByKey, name, payload, state[innerKey], nextPrefix);
   });
 };
 

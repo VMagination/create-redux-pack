@@ -52,7 +52,7 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
   <
     S = Record<string, any>,
     PayloadRun = void,
-    PayloadMain = Record<string, any>,
+    PayloadMain = any,
     PayloadMap extends CRPackPayloadMap<S> = CRPackPayloadMap<S>,
     Info extends CreateReduxPackParams<S, PayloadMain, PayloadMap> = CreateReduxPackParams<S, PayloadMain, PayloadMap>
   >(
@@ -229,10 +229,9 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
       request: {
         actions: <S, PayloadRun, PayloadMain, PayloadMap extends CRPackPayloadMap<S>>({
           name,
-          formatPayload,
         }: CreateReduxPackParams<S, PayloadMain, PayloadMap>) => ({
           run: createAction<PayloadRun>(createReduxPack.getRunName(name)),
-          success: createAction<PayloadMain, S>(createReduxPack.getSuccessName(name), formatPayload),
+          success: createAction<PayloadMain, S>(createReduxPack.getSuccessName(name)),
           fail: createAction<string | ({ error: string } & Record<string, any>)>(createReduxPack.getFailName(name)),
         }),
         actionNames: ({ name }) => ({
@@ -313,6 +312,7 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
         }),
         reducer: <S, PayloadMain, PayloadRun, PayloadMap extends CRPackPayloadMap<S>>({
           name,
+          formatPayload,
           mergeByKey,
           payloadMap = {} as CreateReduxPackPayloadMap<S, PayloadMap> & PayloadMap,
         }: CreateReduxPackParams<S, PayloadMain, PayloadMap>): CRPackReducer<PayloadMain, PayloadRun> => ({
@@ -326,7 +326,7 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
               [createReduxPack.getErrorName(name)]: null,
               [createReduxPack.getResultName(name)]: mergePayloadWithResult(
                 state[createReduxPack.getResultName(name)],
-                payload,
+                formatPayload ? formatPayload(payload) : payload,
                 mergeByKey,
               ),
             };
@@ -342,9 +342,8 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
       simple: {
         actions: <S, _, PayloadMain, PayloadMap extends CRPackPayloadMap<S>>({
           name,
-          formatPayload,
         }: CreateReduxPackParams<S, PayloadMain, PayloadMap>) => ({
-          set: createAction<PayloadMain, S>(createReduxPack.getSetName(name), formatPayload),
+          set: createAction<PayloadMain, S>(createReduxPack.getSetName(name)),
           reset: createAction<string | ({ error: string } & Record<string, any>)>(createReduxPack.getResetName(name)),
         }),
         actionNames: ({ name }) => ({
@@ -385,13 +384,14 @@ const createReduxPack: CreateReduxPackFn & CreateReduxPackType = Object.assign(
           name,
           mergeByKey,
           defaultInitial = null,
+          formatPayload,
           payloadMap = {} as CreateReduxPackPayloadMap<S, PayloadMap> & PayloadMap,
         }: CreateReduxPackParams<S, PayloadMain, PayloadMap>): CRPackReducer<PayloadMain, PayloadRun> => ({
           [createReduxPack.getSetName(name)]: createReducerCase((state, { payload }) => {
             const newState = {
               [createReduxPack.getValueName(name)]: mergePayloadWithResult(
                 state[createReduxPack.getValueName(name)],
-                payload,
+                formatPayload ? formatPayload(payload) : payload,
                 mergeByKey,
               ),
             };
@@ -452,26 +452,25 @@ const createReducerOn = <S>(
   createReduxPack.injectReducerInto(reducerName || 'UnspecifiedReducer', actionMap || {}, initialState || {});
 };
 
-/*
-const asd = createReduxPack({
+/*const asd = createReduxPack({
   name: 'PackWithPayload + modify',
   reducerName: 'reducerName' + 3,
-  formatPayload: (data: { passedItem1: string | null }) => data,
   payloadMap: {
     item4: {
       formatSelector: ({ sad }) => sad,
       sad: {
-        key: 'passedItem1',
-        initial: 'sad' as string,
-        fallback: null,
+        formatPayload: (p: number) => p,
+        asd: { passedItem2: null },
+        initial: 1,
+        fallback: 0,
       },
     },
   },
 });
 
-const a = asd.selectors.isLoading.instances.asd({});
-const a1 = asd.actions.run.instances.asd();
-*/
+const a = asd.selectors.item4({});
+const a1 = asd.actions.success('d');
+const d = asd.actions.d;*/
 
 export {
   createSelector,

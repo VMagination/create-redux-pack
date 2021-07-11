@@ -2,7 +2,7 @@ import { CreateReduxPackParams } from '../types';
 
 const formatComplete: unique symbol = Symbol('format complete');
 
-export const formatParams = <S = Record<string, any>, PayloadMain = Record<string, any>>(
+export const formatParams = <S = Record<string, any>, PayloadMain = any>(
   rawParams: CreateReduxPackParams<S, PayloadMain>,
 ): CreateReduxPackParams<S, PayloadMain> & Partial<Record<typeof formatComplete, boolean>> => {
   try {

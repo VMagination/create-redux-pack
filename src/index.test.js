@@ -56,20 +56,22 @@ const {
   reducerName: reducerName + 3,
   payloadMap: {
     item1: {
-      key: 'passedItem1',
+      formatPayload: (payload) => payload?.passedItem1,
       initial: null,
     },
     item2: {
       initial: { a: 1 },
+      formatPayload: (payload) => payload?.item2,
       formatSelector: (val) => ({ b: val.a }),
       fallback: { a: 10 },
     },
     item3: {
       innerItem1: {
+        formatPayload: (payload) => payload?.innerItem1,
         initial: '3.1',
       },
       innerItem2: {
-        key: 'wha',
+        formatPayload: (payload) => payload?.wha,
         initial: '3.2',
       },
     },
@@ -77,7 +79,7 @@ const {
       innerItem1: {
         innerInnerItem1: {
           initial: '4.1.1',
-          key: 'keyForItem4.sad',
+          formatPayload: (payload) => payload?.keyForItem4?.sad,
           fallback: null,
         },
       },
@@ -94,13 +96,13 @@ const {
   reducerName: reducerName + 3,
   payloadMap: {
     [payloadPackStateNames.item1]: {
-      key: 'passedItem1',
+      formatPayload: (payload) => payload?.passedItem1,
       initial: payloadPackInitial[payloadPackStateNames.item1],
       modifyValue: (passedItem, prevValue) => prevValue + passedItem,
     },
     [payloadPackStateNames.item4]: {
       sad: {
-        key: 'passedItem1',
+        formatPayload: (payload) => payload?.passedItem1,
         initial: 'sad',
         fallback: 'asd',
         modifyValue: (passedItem, prevValue) => prevValue + passedItem,
@@ -180,7 +182,6 @@ const {
   template: 'simple',
   payloadMap: {
     counter: {
-      key: '',
       initial: 0,
       fallback: 0,
       modifyValue: (val, prevValue) => {
@@ -189,7 +190,6 @@ const {
     },
     setter: {
       ofValue: {
-        key: '',
         initial: 0,
         fallback: 420,
       },
