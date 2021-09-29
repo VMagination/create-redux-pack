@@ -1,6 +1,6 @@
 import { hasCRPackName } from './hasCRPackName';
 
-export const makeKeysReadable = <T extends Record<string, any>>(obj: T): T => {
+export const makeKeysReadable = <T>(obj: T): T => {
   if (!(obj && typeof obj === 'object')) return obj;
   const result = { ...obj };
   const renameKeys = (origin: any) => {

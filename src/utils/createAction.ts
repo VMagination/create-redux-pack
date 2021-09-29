@@ -1,13 +1,13 @@
 import { CreateReduxPackAction } from '../types';
 import { createAction as createToolkitAction } from '@reduxjs/toolkit';
 
-export const createAction = <Payload, Result = Payload>(
+export const createAction = <Payload extends any[], FP extends (...data: Payload) => any>(
   name: string,
-  formatPayload?: (data: Payload) => Result,
-): CreateReduxPackAction<Payload, Result | Payload> =>
+  formatPayload?: FP,
+): CreateReduxPackAction<Parameters<FP>, ReturnType<FP>> =>
   Object.assign(
     createToolkitAction(name, (data) => ({
-      payload: formatPayload ? formatPayload(data) : data,
+      payload: formatPayload ? formatPayload(...([data] as Payload)) : data,
     })),
     {
       instances: new Proxy(
@@ -21,7 +21,7 @@ export const createAction = <Payload, Result = Payload>(
               t,
               p,
               createToolkitAction(name, (data) => ({
-                payload: formatPayload ? formatPayload(data) : data,
+                payload: formatPayload ? formatPayload(...([data] as Payload)) : data,
                 meta: {
                   instance: p,
                 },
@@ -33,4 +33,4 @@ export const createAction = <Payload, Result = Payload>(
         },
       ),
     },
-  );
+  ) as any;

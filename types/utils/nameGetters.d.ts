@@ -8,4 +8,5 @@ export declare const getResultName: (name: string) => string;
 export declare const getValueName: (name: string) => string;
 export declare const getErrorName: (name: string) => string;
 export declare const getKeyName: (name: string, key: string) => string;
+export declare const getActionName: (name: string, actionName: string) => string;
 export declare const getNameWithInstance: (name: string, instance?: string | undefined) => string;

@@ -1,10 +1,13 @@
 import { configureStore as configureStoreToolkit } from '@reduxjs/toolkit';
-import { Action, CreateReduxPackFn, CreateReduxPackType } from './types';
+import { Action, CreateReduxPackType } from './types';
 import { createAction, createReducerCase, createSelector, mergeGenerators, resetAction, makeKeysReadable } from './utils';
-declare const createReduxPack: CreateReduxPackFn & CreateReduxPackType;
+import { CRPackFN } from './types';
+import { requestErrorGen } from './generators/error';
+import { resetActionGen } from './generators/reset';
+declare const createReduxPack: CRPackFN & CreateReduxPackType;
 declare const enableLogger: () => void;
 declare const disableLogger: () => void;
-declare const configureStore: (options: Omit<Parameters<typeof configureStoreToolkit>[0], 'reducer'>) => ReturnType<typeof configureStoreToolkit>;
+declare const configureStore: (options?: Omit<Parameters<typeof configureStoreToolkit>[0], 'reducer'>) => ReturnType<typeof configureStoreToolkit>;
 declare const createReducerOn: <S>(reducerName: string, initialState: S, actionMap: Record<string, (state: S, action: Action<any>) => S>) => void;
-export { createSelector, createAction, configureStore, enableLogger, disableLogger, createReducerOn, createReducerCase, mergeGenerators, resetAction, makeKeysReadable, };
+export { createSelector, createAction, configureStore, enableLogger, disableLogger, createReducerOn, createReducerCase, mergeGenerators, resetAction, requestErrorGen, resetActionGen, makeKeysReadable, };
 export default createReduxPack;

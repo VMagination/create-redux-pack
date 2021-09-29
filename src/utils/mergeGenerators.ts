@@ -1,21 +1,20 @@
-import { Action, CreateReduxPackParams, CRPackGenObj, CRPackPayloadMap } from '../types';
+import { Action, CombineFn, Params, CRPackWithGen } from '../types';
 
 export const mergeGenerators = <
-  T = Record<string, any>,
-  S = Record<string, any>,
-  PayloadMain = any,
-  PayloadMap extends CRPackPayloadMap<S> = any
+  Config extends Params,
+  Gen1 extends CRPackWithGen<Config, any>,
+  Gen2 extends CRPackWithGen<Config, any>
 >(
-  ...generators: CRPackGenObj<S, PayloadMain, PayloadMap>[]
-): T => {
+  ...generators: [Gen1, Gen2]
+): CombineFn<Gen1, Gen2> => {
   try {
     const keyList = [...new Set(generators.reduce<string[]>((accum, gen) => [...accum, ...Object.keys(gen)], []))];
-    let reducer: (info: CreateReduxPackParams<any, any>) => Record<string, any> = () => ({});
+    let reducer: (...args: [Config, any]) => Record<string, any> = () => ({});
     if (keyList.includes('reducer')) {
-      reducer = (info) => {
+      reducer = (...args) => {
         const reducers = generators
           .filter((gen) => gen.hasOwnProperty('reducer'))
-          .map((gen) => gen.reducer(info))
+          .map((gen) => gen.reducer(...args))
           .filter((gen) => gen && typeof gen === 'object' && gen?.constructor?.name === 'Object');
         const reducersKeys = [
           ...new Set(reducers.reduce<string[]>((accum, reducer) => [...accum, ...Object.keys(reducer)], [])),
@@ -23,7 +22,7 @@ export const mergeGenerators = <
         return reducersKeys.reduce(
           (accum, reducerKey) => ({
             ...accum,
-            [reducerKey]: (state: Record<string, any> = {}, action: Action<any>) => {
+            [reducerKey]: (state: Record<string, any> = {}, action: Action<any>, isMerging = false) => {
               const currentReducers = reducers.filter((reducer) => reducer.hasOwnProperty(reducerKey));
               return currentReducers.reduce(
                 (innerAccum, currentReducer) => {
@@ -47,7 +46,7 @@ export const mergeGenerators = <
                     ...toReturn,
                   };
                 },
-                { ...state },
+                isMerging ? {} : { ...state },
               );
             },
           }),
@@ -58,10 +57,13 @@ export const mergeGenerators = <
     const result = keyList.reduce(
       (accum, key) => ({
         ...accum,
-        [key]: (info: CreateReduxPackParams<any, any>) => {
+        [key]: (...args: [Config, any]) => {
           return generators
             .filter((gen) => gen.hasOwnProperty(key))
-            .reduce((accum, gen) => ({ ...accum, ...gen[key](info) }), {});
+            .reduce((accum, gen) => {
+              const result = gen[key](...args);
+              return result && typeof result === 'object' ? { ...accum, ...gen[key](...args) } : gen[key](...args);
+            }, {});
         },
       }),
       {} as Record<string, any>,
@@ -69,7 +71,7 @@ export const mergeGenerators = <
     return ({
       ...result,
       reducer,
-    } as unknown) as T;
+    } as unknown) as CombineFn<Gen1, Gen2>;
   } catch (e) {
     throw new Error('CRPack: mergeGenerators received invalid generators');
   }

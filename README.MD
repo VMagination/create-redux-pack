@@ -120,17 +120,15 @@ To add logic of a pack it is required to inject its reducer and initialState int
       reducerName: 'Reducer',
       payloadMap: {
         item1: {
-          key: 'passedItem1',
           initial: null,
         },
         item2: {
-          key: 'passedItem2',
           innerItem1: {
-            key: 'someField.sub', 
             item: {
-              // will take 'passedItem2.someField.sub.item' of payload
+              formatPayload: ({ nestedItem }) => nestedItem,
               initial: { a: 0 },
               fallback: { a: 10 },
+              formatSelector: ({ a }) => a,
             },
           },
         },
@@ -142,18 +140,11 @@ To add logic of a pack it is required to inject its reducer and initialState int
       reducerName: 'Reducer',
       payloadMap: {
         [firstPackStateNames.item1]: {
-          key: 'passedItem1',
+          formatPayload: ({passedItem1}) => passedItem1,
           initial: firstPackInitialState[firstPackStateNames.item1],
           modifyValue: (passedItem, prevValue) => prevValue + passedItem,
-        }, 
-        [firstPackStateNames.item2]: {
-          innerItem1: { // end state will contain both pack's innerItem1
-            // will take 'innerItem1' of payload
-            initial: 1,
-            modifyValue: (passedItem, prevValue) => prevValue + 1,
-            },
-          },
         },
+      }
     });
 
     const { actions, selectors, actionNames } = PackWithPayloadModify;
@@ -171,7 +162,7 @@ To add logic of a pack it is required to inject its reducer and initialState int
     function* fetchSomething() {
       try {
         const data = yield call(Api.getSomething);
-        yield put(actions.success(data));
+        yield put(actions.success({ passedItem: data }));
       } catch (error) {
         yield put(actions.fail(error));
       }
@@ -183,26 +174,35 @@ To add logic of a pack it is required to inject its reducer and initialState int
 ```
 </details>
 
-## Lazy loading
+## Features and Notes
+
+### CRPack is an extension not a replacement
+
+CRPack is just a utility you can use to create common / simple packs of redux components. Unless you configure store with this library you can just append provided components where you need them. And even if you do configure store with it, it still provides tools to manually create what you need. For example createReducerOn append an action map to reducer and inject it on import (supports lazy loading).
+
+### Packages generates everything yet it's not overgenerated
+
+Package is a utilized proxy object with caching meaning until you actually access a field of that object that field won't be generated.
+
+### Selectors are fully dynamic
+
+Any field registered inside a package can be chained to infinity using the same proxy approach as above. Any field you access generates a cached Reselector selector even if it's a dynamic field (``pack.selectors.records[id].name``) and even if field doesn't exist it will keep the chain running returning undefined.
+
+### Lazy loading
 
 CRPack fully and internally supports lazy loading. If you are using webpack reducer of each package will be injected on their first import.
 
 > Lazy loading only works if store was configured using provided configureStore utility.
 
-
-## Instances for loading
+### Instances for loading
 
 It's annoying how sometimes fetching data updates loading everywhere showing loader when and where you did not intend to. With action instances you can separate loaders accordingly.
 
-## Dynamic Logger
+### Dynamic Logger
 
 CRPack has integrated logger which can be enabled and disabled from any part of your code. It will only display type and payload of dispatched actions but practice shows it is enough and if it isn't you should use redux devtools, the main purpose of this logger is to display actions that are dispatched on current page / screen to ease debugging a bit.
 
-## CRPack is an extension not a replacement
-
-CRPack is just a utility you can use to create common / simple packs of redux components. Unless you configure store with this library you can just append provided components where you need them. And even if you do configure store with it, it still provides tools to manually create what you need. For example createReducerOn append an action map to reducer and inject it on import (supports lazy loading).
-
-## Reducer is an Action Map
+### Reducer is an Action Map
 
 In context of CRPack all Action Maps referred as Reducers. The difference of terms is major, yet passing action map to parameter named reducer will result in an actual reducer with same cases making those two terms equal for the library.
 
@@ -211,9 +211,8 @@ In context of CRPack all Action Maps referred as Reducers. The difference of ter
 ## API reference
 
 - [createReduxPack](#createreduxpackpackinfo--pack)
-- [pack.withGenerator](#packwithgeneratorpackinfo-generator--injectedpack)
+- [pack.withGenerator](#packwithgeneratorgenerator--injectedpack)
 - [configureStore](#configurestoreoptions--store)
-- [mergeGenerators](#mergegeneratorsgenerator--generator)
 - [createAction](#createactionname-formatpayload--payload--action)
 - [createSelector](#createselectorreducerorsource-keyorformat--selector)
 - [createReducerCase](#createreducercasestate-action--partialstate)
@@ -221,40 +220,46 @@ In context of CRPack all Action Maps referred as Reducers. The difference of ter
 - [loggerToggle](#enablelogger-and-disablelogger)
 - [toggleReducerUpdates](#createreduxpackfreezereducerupdates)
 - [resetAction](#resetaction)
+- [default id generation](#createreduxpacksetdefaultidgenerationnewdefault)
 - [createReduxPack[formatNames]](#createreduxpack-name-formation)
 - [createReduxPack[informationalItems]](#createreduxpack_store)
 
 ### createReduxPack(packInfo) => pack
-Creates pack of redux components with default generator
-
-**createReduxPack**<State, PayloadRun, PayloadMain>
-
-- **State** = Record<string, any> - appended State of reducer
-- **PayloadRun** = void - type of run Payload
-- **PayloadMain** = Record<string, any> - type of success Payload
+Creates pack of redux components with one of default generators
 
 #### packInfo
-
-- **name** - *string*, Required, pack name, will be modified to be unique
-- **reducerName** - *string*, Required, name of reducer, will be used to add or inject logic into specified reducer
-- **defaultInitial** - *any*, Optional, initial value of default result/value, fallbacks to *null*, should be defined if you are using result/value for state management
-- **mergeByKey** - *string*, Optional, if not empty will make reducers try to merge default value with payload using key as identificator, initial and payload should be an array or an object otherwise no merge will commence
-- **formatPayload** - *(data: PayloadMain) => State*, Optional, function to format payload for default value field
-- **payloadMap** - *CreateReduxPackPayloadMap<State>*, Optional, object of extra fields that will be appended to state
-- **template** - *'request' | 'simple'*, Optional, template to use when creating a package, fallbacks to 'request'.
+| Field | Type | Required | Description | Default |
+| :---: | :-----: | :---: | :--- | :--- |
+| name | string | yes | package name, will be modified to be unique |
+| reducerName | string | yes | name of reducer, will be used to add or inject logic into specified reducer |
+| template | 'request' / 'simple' | no | template to use when creating a package | 'request' |
+| actions | string[] | no | extra actions to be generated, *have to be declared here before using with payloadMap* |
+| idGeneration | boolean | no | should generate random field id or keep it static | true / specified default CRPack value |
+| defaultInitial | Default | no | initial value of default result/value, should be defined if you are using result/value for state management | null |
+| formatPayload | (payload: any) => Default | no | function to format payload for default value field, *overrides formatMergePayload* |
+| modifyValue | (value, prevValue) => Default | no | allows modification of default value field, *overrides mergeByKey* |
+| mergeByKey | keyof Default | no | if not empty will make reducers try to merge default value with payload using key as identificator, initial and payload should be an array or an object otherwise no merge will commence |
+| formatMergePayload | (payload: any) => Default[keyof Default] | no | function to get value for current field from payload during merging |
+| payloadMap | PayloadMap | no | object of extra fields that will be appended to state with their own logic |
 
 #### payloadMap
 
-{ [key of (State, anotherPackState)]: options | { [innerKey of State[key]]: options | ... }  }
+{ [key: string]: Options | { [innerKey: string]: Options | ... }  }
 
 Accepts object with options or nested object with end section containing options, supports keys of  another pack's State.
 
-Options:
-- **initial** - *State[key of field]*, Required, initial value of this field
-- **formatPayload** - *(payload: PayloadMain) => State[key of field]*, Optional, function to get value for current field from payload
-- **fallback** - *any*, Optional, value that will replace current field value in case falsy payload will be provided to success action. It's just a guard to prevent potential crashes of bad payload.
-- **formatSelector** - *(data: State[key of field]) => any*, Optional, function to format field value for selector to return. **Types have to be specified explicitly** (known issue) *or typescript will throw error on non-primitive types*.
-- **modifyValue** - *(value: any, prevValue?: State[key of field]) => State[key of field]*, Optional, used to set new value according or using previous value.
+#### Options:
+
+| Field | Type | Description |
+| :---: | :----: | :--- | 
+| initial* | any (State) | required, initial value of this field |
+| fallback | any (State) | value that will replace current field value in case falsy payload will be provided to an action. It's just a guard to prevent potential crashes of bad payload, fallbacks to `null` |
+| actions | Actions[] | actions specified in packInfo, define on what actions to expect this field update, fallbacks to ['success' / 'set'] |
+| formatSelector | (data: State) => any | function to format value for selector of this field to return. |
+| formatPayload | (payload: any) => State | function to get value for current field from payload, *overrides formatMergePayload* |
+| modifyValue | (value, prevValue, action: { code }) => State | used to set new value according or using previous value, *overrides mergeByKey* |
+| mergeByKey | keyof State | if not empty will make reducers try to merge default value with payload using key as identificator, initial and payload should be an array or an object otherwise no merge will commence |
+| formatMergePayload | (payload: any) => State[keyof State] | function to get value for current field from payload during merging |
 
 #### Request Pack contains
 
@@ -262,12 +267,11 @@ Options:
 - **actions** - contains default actions
     - **run** - (payload: PayloadRun) => Action
     - **success** - (payload: PayloadMain) => Action
-    - **fail** - (error: string) => Action
+    - **fail** - () => Action
     - **&ast;.instances.&ast;** - according action with injected instance
 - **selectors** - contains selectors for generated fields of state
     - **isLoading** - Selector for loading
     - **isLoading.instances.&ast;** - Selectors for instanced loadings
-    - **error** - Selector for error
     - **result** - Selector for result
     - **[key of State]** - Selectors for each field of payloadMap
     - **[key of State][innerKey of State[key]][...]** - Selectors for nested payloadMap object, if field wasn't declared in payloadMap it can still be accessed, failing to acquire that key will result in selector returning *undefined*.
@@ -280,7 +284,6 @@ Options:
 - **stateNames** - contains keys to values of state
     - **isLoading** - string
     - **result** - string
-    - **error** - string
     - **[key of State]** - string, fields passed to payloadMap
     - **[key of State][innerKey of State[key]][...]** - string, fields of nested payloadMap object, returns generated key or own key if field wasn't declared.
   
@@ -304,27 +307,33 @@ Options:
     - **[key of State]** - string, fields passed to payloadMap
     - **[key of State][innerKey of State[key]][...]** - string, fields of nested payloadMap object, returns generated key or own key if field wasn't declared.
 
-### pack.withGenerator(packInfo, generator) => injectedPack
+### pack.withGenerator(generator) => injectedPack
 
-Creates pack of redux components using default generator injected with provided custom generator, **results of generators with same name as default packs parts will be merged**.
+Creates pack of redux components using default generator injected with provided custom generator, **results of generators with same name as default packs parts will be merged including reducer cases**.
 
-**pack.withGenerator**<State, PayloadRun, PayloadMain, Gen>
-
-- **State** = Record<string, any> - appended State of reducer
-- **PayloadRun** = void - type of run Payload
-- **PayloadMain** = Record<string, any> - type of success Payload
-- **Gen** = Record<string, any> - type of fields that will be added
+> Can be chained indefinitely pack.withGenerator(...).withGenerator(...)
 
 #### generator
 
-Accepts an object containing fields with functions that accept a packInfo parameter and return any type of data that you want your pack to have
+Generator is an object containing fields with functions that accept a packInfo parameter and previously generated pack, return any type of data that you want your pack to have
 
 > Field with name of **name** will be rejected. Only default generator can set pack's name.
 
+> Reducer field cases will only be merged if they are wrapped in createReducerCase
+
 ```js
   const generator = {
-    anyField: (info) => info.name,  
-    anotherField: () => 'anotherField',  
+    anyField: (info) => info.name,
+    anotherField: () => 'anotherField',
+    thunk: (_info, { actions }) => async (dispatch) => {
+      dispatch(actions.run());
+      try {
+        const response = await fetch('api');
+        dispatch(actions.success(response));
+      } catch {
+        dispatch(actions.fail());
+      }
+    },
   }
 
   const customPack = createReduxPack({
@@ -336,47 +345,18 @@ Accepts an object containing fields with functions that accept a packInfo parame
 
 ```
 
-Main purpose of withGenerator is to inject logic into default generator
+Main purpose of withGenerator is to inject logic into default generator and prevent boilerplates using original packages
 
 > It is advised to get packInfo from provided parameter to keep generators reusable and get packInfo modified internally
 
-```js
-  import createReduxPack, { createAction } from 'create-redux-pack';
+### Provided generators for common cases
 
-  const generator =  {
-    actionNames: ({ name }) => ({
-      reset: name + 'Reset',
-    }),
-    actions: ({ name }) => ({
-      reset: createAction(name + 'Reset'),
-    }),
-    reducer: ({ name }) => ({
-      [name + 'Reset']: (state) => ({
-        ...state,
-        [createReduxPack.getResultName(name)]: null,
-      }),
-    }),
-  }
-
-  const customPack = createReduxPack.withGenerator({
-        name: 'PackWithCustomAction',
-        reducerName: 'Reducer',
-  }, generator);
-  
-  // React Component
-  dispatch(customPack.actions.reset());
-
-```
+- **resetActionGen** - will add an action to reset default and payloadMap fields of the pack
+- **requestErrorGen** - will add error field that will be updated on fail action of request template, with state name and selector
 
 ### configureStore(options) => store
 
 Configures store with provided options, **accepts same parameters as configureStore of @reduxjs/toolkit except reducer**, reducer will be added internally, provided will be rejected.
-
-### mergeGenerators(...generator) => generator
-
-Merges multiple generators into one. Exists to combine logic of several reusable generators.
-
-> Will merge results of reducer cases
 
 ### createAction(name, formatPayload) => (payload) => Action
 
@@ -424,12 +404,16 @@ Stops all injections of reducers into store until activated
 
 Allows all injections of reducers into store and immediately injects all reducers added since injections disable.
 
-> It is advised to freeze updated in the beginning of files that are being lazy loaded and release updates in their ends. This feature exists because all packages injected separately and single bulk update will be more performant.
+> It is advised to freeze updated in the beginning of files that are being lazy loaded and release updates at their ends. This feature exists because all packages injected separately and single bulk update will be more performant.
 
 ### resetAction
 
 Call returns action that can be dispatched to reset store to initial state.
   
+### createReduxPack.setDefaultIdGeneration(newDefault)
+
+Sets default id generation value for all packages created after calling this function. **Exists to support libs like redux-persist that require static fields**.
+
 ### createReduxPack name formation
 - *createReduxPack*.**getRunName(name)** - returns run action name
 - *createReduxPack*.**getSuccessName(name)** - returns success action name
@@ -450,16 +434,11 @@ Call returns action that can be dispatched to reset store to initial state.
 
 *ReadOnly*. Contains initialState of all injected reducers (merged)
 
-### createReduxPack._generators
-
-*ReadOnly*. Contains default generators for request and simple packages.
-
 ## ToDo list
 - [x] Expose merge for generators
 - [x] Merge results of merged reducers
 - [x] Resolve payloadMap to support nested payload object
 - [x] Add instances for loading
-- [ ] Merge for reducer values / results
-- [ ] PayloadMap for run and error actions
+- [x] PayloadMap for any action
 - [ ] Provide utils to work with nested payloadMap within generators
 - [ ] Injection to Root Reducer for global actions

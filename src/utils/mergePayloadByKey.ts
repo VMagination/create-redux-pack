@@ -4,7 +4,7 @@ const normalizeValue = (item: any): any => {
   return `${item}`;
 };
 
-export const mergePayloadWithResult = (state: any, payload: any, key?: string): any => {
+export const mergePayloadByKey = (state: any, payload: any, key?: PropertyKey): any => {
   if (key && payload && typeof payload === 'object' && state && typeof state === 'object') {
     if (Array.isArray(state)) {
       if (Array.isArray(payload)) {

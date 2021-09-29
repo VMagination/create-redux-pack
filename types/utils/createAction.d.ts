@@ -1,2 +1,2 @@
 import { CreateReduxPackAction } from '../types';
-export declare const createAction: <Payload, Result = Payload>(name: string, formatPayload?: ((data: Payload) => Result) | undefined) => CreateReduxPackAction<Payload, Payload | Result>;
+export declare const createAction: <Payload extends any[], FP extends (...data: Payload) => any>(name: string, formatPayload?: FP | undefined) => CreateReduxPackAction<Parameters<FP>, ReturnType<FP>>;

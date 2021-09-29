@@ -3,8 +3,40 @@ import { createSelector as createReSelector } from 'reselect';
 import { getReadableKey } from './getReadableKey';
 import { getKeyName } from './nameGetters';
 import { makeKeysReadable } from './makeKeysReadable';
+import { mergePayloadByKey } from './mergePayloadByKey';
 
 const shouldRecursionEnd = (payloadMapByKey: any) => 'initial' in payloadMapByKey;
+
+const empty = Symbol('CRPack value: empty');
+
+const isTreeEmpty = (obj: any): boolean => {
+  const c = Object.keys(obj).every((key) => {
+    if (obj[key] && typeof obj[key] === 'object') {
+      return isTreeEmpty(obj[key]);
+    }
+    return obj[key] === empty;
+  });
+  return c;
+};
+
+const setEmptyTrees = (obj: any) => {
+  if (obj && typeof obj === 'object') {
+    Object.keys(obj).forEach((key) => {
+      if (obj[key] && typeof obj[key] === 'object') {
+        return isTreeEmpty(obj[key]) ? (obj[key] = empty) : setEmptyTrees(obj[key]);
+      }
+    });
+  }
+  return obj;
+};
+
+const removeEmpties = (obj: any, initial = true) => {
+  initial && setEmptyTrees(obj);
+  Object.keys(obj).forEach((key) =>
+    obj[key] === empty ? delete obj[key] : obj[key] && typeof obj[key] === 'object' && removeEmpties(obj[key]),
+  );
+  return obj;
+};
 
 export const addStateParam = (
   obj: Record<string, any>,
@@ -12,16 +44,24 @@ export const addStateParam = (
   payloadMap: Record<string, any>,
   name: string,
   payload: any,
+  payloadField: any,
   state: Record<string, any>,
+  action: string,
+  isMainAction: boolean,
   prefix = '',
 ): void => {
   const payloadMapByKey = payloadMap[key];
-  const payloadValue = payloadMapByKey?.formatPayload
-    ? payloadMapByKey.formatPayload(payload) ?? payloadMapByKey?.fallback
-    : payload ?? payloadMapByKey?.fallback;
-  const modification = payloadMapByKey?.modifyValue;
   const stateKey = getKeyName(name, `${prefix}${key}`);
-  obj[stateKey] = modification ? modification(payloadValue, state[stateKey]) : payloadValue;
+  if ((isMainAction && !payloadMapByKey?.actions) || payloadMapByKey?.actions?.includes(action)) {
+    const format = payloadMapByKey?.formatPayload || payloadMapByKey?.formatMergePayload;
+    const payloadValue = (format ? format(payload) : payloadField) ?? payloadMapByKey?.fallback;
+    const modification = payloadMapByKey?.modifyValue;
+    obj[stateKey] = modification
+      ? modification(payloadValue, state[stateKey], { code: action })
+      : mergePayloadByKey(state[stateKey], payloadValue, payloadMapByKey?.mergeByKey);
+  } else {
+    obj[stateKey] = empty;
+  }
 };
 
 export const addMappedPayloadToState = <S = Record<string, any>, PayloadMain = any>(
@@ -29,19 +69,43 @@ export const addMappedPayloadToState = <S = Record<string, any>, PayloadMain = a
   payloadMap: CreateReduxPackPayloadMap<S>,
   name: string,
   payload: PayloadMain,
+  payloadField: any,
   state: Record<string, any>,
+  action: string,
+  isMainAction = false,
   prefix = '',
+  isTop = true,
 ): void => {
   const keys = Object.keys(payloadMap).filter((key) => key !== 'key');
   keys.forEach((key) => {
     const payloadMapByKey: any = payloadMap[key as keyof S];
     if (shouldRecursionEnd(payloadMapByKey)) {
-      return addStateParam(obj, key, payloadMap, name, payload, state, prefix);
+      addStateParam(obj, key, payloadMap, name, payload, payloadField?.[key], state, action, isMainAction, prefix);
+      if (isTop) {
+        setEmptyTrees(obj);
+        removeEmpties(obj);
+      }
+      return;
     }
     const innerKey = getKeyName(name, `${prefix}${key}`);
     obj[innerKey] = { ...state[innerKey], ...(obj[innerKey] || {}) };
     const nextPrefix = `${prefix}${getReadableKey(key)}.`;
-    addMappedPayloadToState(obj[innerKey], payloadMapByKey, name, payload, state[innerKey], nextPrefix);
+    addMappedPayloadToState(
+      obj[innerKey],
+      payloadMapByKey,
+      name,
+      payload,
+      payloadField?.[key],
+      state[innerKey],
+      action,
+      isMainAction,
+      nextPrefix,
+      false,
+    );
+    if (isTop) {
+      setEmptyTrees(obj);
+      removeEmpties(obj);
+    }
   });
 };
 

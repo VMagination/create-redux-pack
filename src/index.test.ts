@@ -1,5 +1,7 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import createReduxPack, {
   resetAction,
+  requestErrorGen,
   disableLogger,
   enableLogger,
   configureStore,
@@ -10,9 +12,9 @@ import createReduxPack, {
   mergeGenerators,
   makeKeysReadable,
 } from './index';
-import { mergePayloadWithResult } from './utils/mergePayloadWithResult';
+import { mergePayloadByKey } from './utils/mergePayloadByKey';
 
-const state = () => createReduxPack._store.getState();
+const state = () => createReduxPack._store?.getState();
 
 test('pack exists', () => {
   expect(createReduxPack).toBeDefined();
@@ -33,6 +35,16 @@ test('check logger toggle', () => {
   expect(createReduxPack.isLoggerOn).toEqual(false);
 });
 
+test('check id generator disabling', () => {
+  expect(createReduxPack._idGeneration).toEqual(true);
+  createReduxPack.setDefaultIdGeneration(true);
+  expect(createReduxPack._idGeneration).toEqual(true);
+  createReduxPack.setDefaultIdGeneration(false);
+  expect(createReduxPack._idGeneration).toEqual(false);
+  createReduxPack.setDefaultIdGeneration(true);
+  expect(createReduxPack._idGeneration).toEqual(true);
+});
+
 const packName = 'TestPack';
 const reducerName = 'TestReducer';
 const {
@@ -43,7 +55,12 @@ const {
   actions: testPackActions,
   actionNames: testPackActionNames,
   reducer: testPackReducer,
-} = createReduxPack({ name: packName, reducerName: reducerName });
+} = createReduxPack({
+  name: packName,
+  reducerName: reducerName,
+  defaultInitial: null as any,
+  actions: ['extraAction'],
+});
 const uniqueName = testPackName;
 
 const {
@@ -53,11 +70,19 @@ const {
   actions: payloadPackActions,
 } = createReduxPack({
   name: 'PackWithPayload',
+  actions: ['setError'],
   reducerName: reducerName + 3,
   payloadMap: {
+    error: {
+      formatPayload: (payload: string) => payload,
+      actions: ['fail', 'setError'],
+      initial: null as null | string,
+    },
     item1: {
-      formatPayload: (payload) => payload?.passedItem1,
-      initial: null,
+      actions: ['success', 'run'],
+      formatPayload: (payload: { passedItem1: string } | void) => payload?.passedItem1 ?? null,
+      modifyValue: (val, _prevVal, { code }) => (code === 'success' ? val : null),
+      initial: null as null | string,
     },
     item2: {
       initial: { a: 1 },
@@ -100,16 +125,8 @@ const {
       initial: payloadPackInitial[payloadPackStateNames.item1],
       modifyValue: (passedItem, prevValue) => prevValue + passedItem,
     },
-    [payloadPackStateNames.item4]: {
-      sad: {
-        formatPayload: (payload) => payload?.passedItem1,
-        initial: 'sad',
-        fallback: 'asd',
-        modifyValue: (passedItem, prevValue) => prevValue + passedItem,
-      },
-    },
   },
-});
+}).withGenerator(requestErrorGen);
 
 const {
   initialState: genPackInitial,
@@ -122,6 +139,7 @@ const {
   newParam: genPackNew,
 } = createReduxPack({
   name: 'PackWithGenerator',
+  idGeneration: false,
   reducerName: reducerName + 4,
   defaultInitial: [],
 }).withGenerator(
@@ -140,7 +158,8 @@ const {
         reset: createAction(name + 'Reset'),
       }),
       reducer: ({ name }) => ({
-        [createReduxPack.getRunName(name)]: createReducerCase(() => ({
+        [createReduxPack.getRunName(name)]: createReducerCase((state) => ({
+          ...state, // its here for warn test
           [createReduxPack.getLoadingName(name)]: false,
           somethingCool: 'right here',
         })),
@@ -180,19 +199,28 @@ const {
   reducerName: reducerName + 5,
   defaultInitial: -10,
   template: 'simple',
+  actions: ['extraAction'],
   payloadMap: {
     counter: {
-      initial: 0,
+      formatPayload: (val: number | void) => val,
+      initial: 0 as number | void,
       fallback: 0,
       modifyValue: (val, prevValue) => {
-        return prevValue + val;
+        return (prevValue || 0) + (val || 0);
       },
     },
     setter: {
       ofValue: {
+        formatPayload: (val: number) => val,
         initial: 0,
         fallback: 420,
       },
+    },
+    extraField: {
+      actions: ['extraAction'],
+      formatPayload: (val: number) => val,
+      modifyValue: (v, pV) => v + pV,
+      initial: 0,
     },
   },
 });
@@ -204,8 +232,6 @@ test('check name change and generations', () => {
   expect(createReduxPack.getSuccessName(uniqueName)).toContain(packName);
   expect(uniqueName).not.toEqual(createReduxPack.getResultName(uniqueName));
   expect(createReduxPack.getResultName(uniqueName)).toContain(packName);
-  expect(uniqueName).not.toEqual(createReduxPack.getErrorName(uniqueName));
-  expect(createReduxPack.getErrorName(uniqueName)).toContain(packName);
   expect(uniqueName).not.toEqual(createReduxPack.getFailName(uniqueName));
   expect(createReduxPack.getFailName(uniqueName)).toContain(packName);
   expect(uniqueName).not.toEqual(createReduxPack.getLoadingName(uniqueName));
@@ -214,6 +240,7 @@ test('check name change and generations', () => {
 
 test('check package actionNames', () => {
   expect(testPackActionNames.success).toEqual(createReduxPack.getSuccessName(uniqueName));
+  expect(testPackActionNames.extraAction).toBeDefined();
   expect(testPackActionNames.success).not.toEqual(testPackActionNames.run);
   expect(testPackActionNames.success).not.toEqual(testPackActionNames.fail);
   expect(testPackActionNames.fail).toEqual(createReduxPack.getFailName(uniqueName));
@@ -224,39 +251,38 @@ test('check package actionNames', () => {
 test('check package stateNames', () => {
   expect(testPackStateNames.result).toEqual(createReduxPack.getResultName(uniqueName));
   expect(testPackStateNames.isLoading).toEqual(createReduxPack.getLoadingName(uniqueName));
-  expect(testPackStateNames.error).toEqual(createReduxPack.getErrorName(uniqueName));
   expect(testPackStateNames.result).not.toEqual(testPackStateNames.isLoading);
-  expect(testPackStateNames.result).not.toEqual(testPackStateNames.error);
-  expect(testPackStateNames.error).not.toEqual(testPackStateNames.isLoading);
 });
 
 test('check package actions', () => {
-  expect(testPackActions.run({ a: 1 })).toEqual({ type: createReduxPack.getRunName(uniqueName), payload: { a: 1 } });
+  expect(testPackActions.run()).toEqual({ type: createReduxPack.getRunName(uniqueName), payload: undefined });
+  expect(testPackActions.extraAction()).toEqual({
+    type: createReduxPack.getActionName(uniqueName, 'extraAction'),
+    payload: undefined,
+  });
   expect(testPackActions.success({ b: 2 })).toEqual({
     type: createReduxPack.getSuccessName(uniqueName),
     payload: { b: 2 },
   });
-  expect(testPackActions.fail('error')).toEqual({ type: createReduxPack.getFailName(uniqueName), payload: 'error' });
+  expect(testPackActions.fail()).toEqual({ type: createReduxPack.getFailName(uniqueName), payload: undefined });
 });
 
 test('check package initialState', () => {
   expect(testPackInitial).toEqual({
     [testPackStateNames.result]: null,
     [testPackStateNames.isLoading]: false,
-    [testPackStateNames.error]: null,
   });
 });
 
 test('check package selectors', () => {
   expect(testPackSelectors.result).toBeDefined();
-  expect(testPackSelectors.error).toBeDefined();
   expect(testPackSelectors.isLoading).toBeDefined();
 });
 
 test('check package reducer', () => {
-  expect(testPackReducer[testPackActions.run]).toBeDefined();
-  expect(testPackReducer[testPackActions.success]).toBeDefined();
-  expect(testPackReducer[testPackActions.fail]).toBeDefined();
+  expect(testPackReducer[testPackActionNames.run]).toBeDefined();
+  expect(testPackReducer[testPackActionNames.success]).toBeDefined();
+  expect(testPackReducer[testPackActionNames.fail]).toBeDefined();
 });
 
 test('check package instances', () => {
@@ -277,20 +303,18 @@ test('check store configuration', () => {
     })(),
   ).toBeDefined();
   expect(createReduxPack._store).toBeTruthy();
-  expect(createReduxPack._store.getState()).toBeDefined();
-  expect(createReduxPack._store.getState()).toEqual({
+  expect(createReduxPack._store?.getState()).toBeDefined();
+  expect(createReduxPack._store?.getState()).toEqual({
     [reducerName]: {
-      [testPackStateNames.error]: null,
       [testPackStateNames.isLoading]: false,
       [testPackStateNames.result]: null,
     },
     [reducerName + 3]: {
-      [modifyPackStateNames.error]: null,
       [modifyPackStateNames.isLoading]: false,
       [modifyPackStateNames.result]: null,
-      [modifyPackStateNames.result]: null,
-      [payloadPackStateNames.error]: null,
+      [modifyPackStateNames.error]: null,
       [payloadPackStateNames.isLoading]: false,
+      [payloadPackStateNames.error]: null,
       [payloadPackStateNames.result]: null,
       [payloadPackStateNames.item1]: null,
       [payloadPackStateNames.item2]: { a: 1 },
@@ -302,11 +326,9 @@ test('check store configuration', () => {
         [payloadPackStateNames.item4.innerItem1]: {
           [payloadPackStateNames.item4.innerItem1.innerInnerItem1]: '4.1.1',
         },
-        [modifyPackStateNames[payloadPackStateNames.item4].sad]: 'sad',
       },
     },
     [reducerName + 4]: {
-      [genPackStateNames.error]: null,
       [genPackStateNames.isLoading]: false,
       [genPackStateNames.result]: [],
       [genPackStateNames.flag]: false,
@@ -315,6 +337,7 @@ test('check store configuration', () => {
     },
     [reducerName + 5]: {
       [simplePackStateNames.value]: -10,
+      [simplePackStateNames.extraField]: 0,
       [simplePackStateNames.counter]: 0,
       [simplePackStateNames.setter]: {
         [simplePackStateNames.setter.ofValue]: 0,
@@ -325,37 +348,31 @@ test('check store configuration', () => {
 
 test('check store manipulations', () => {
   expect(testPackSelectors.isLoading(state())).toEqual(false);
-  expect(testPackSelectors.error(state())).toEqual(null);
   expect(testPackSelectors.result(state())).toEqual(null);
 
-  createReduxPack._store.dispatch(testPackActions.run());
+  createReduxPack._store?.dispatch(testPackActions.run());
 
   expect(testPackSelectors.isLoading(state())).toEqual(true);
-  expect(testPackSelectors.error(state())).toEqual(null);
   expect(testPackSelectors.result(state())).toEqual(null);
 
-  createReduxPack._store.dispatch(testPackActions.success({ nothing: 'here' }));
+  createReduxPack._store?.dispatch(testPackActions.success({ nothing: 'here' }));
 
   expect(testPackSelectors.isLoading(state())).toEqual(false);
-  expect(testPackSelectors.error(state())).toEqual(null);
   expect(testPackSelectors.result(state())).toEqual({ nothing: 'here' });
 
-  createReduxPack._store.dispatch(testPackActions.run());
+  createReduxPack._store?.dispatch(testPackActions.run());
 
   expect(testPackSelectors.isLoading(state())).toEqual(true);
-  expect(testPackSelectors.error(state())).toEqual(null);
   expect(testPackSelectors.result(state())).toEqual({ nothing: 'here' });
 
-  createReduxPack._store.dispatch(testPackActions.fail('error'));
+  createReduxPack._store?.dispatch(testPackActions.fail());
 
   expect(testPackSelectors.isLoading(state())).toEqual(false);
-  expect(testPackSelectors.error(state())).toEqual('error');
   expect(testPackSelectors.result(state())).toEqual({ nothing: 'here' });
 
-  createReduxPack._store.dispatch(resetAction());
+  createReduxPack._store?.dispatch(resetAction());
 
   expect(testPackSelectors.isLoading(state())).toEqual(false);
-  expect(testPackSelectors.error(state())).toEqual(null);
   expect(testPackSelectors.result(state())).toEqual(null);
 });
 
@@ -365,63 +382,63 @@ test('check store manipulations \\w instances', () => {
   expect(testPackSelectors.isLoading.instances.instance2(state())).toEqual(false);
   expect(testPackSelectors.result(state())).toEqual(null);
 
-  createReduxPack._store.dispatch(testPackActions.run.instances.instance1());
+  createReduxPack._store?.dispatch(testPackActions.run.instances.instance1());
 
   expect(testPackSelectors.isLoading(state())).toEqual(false);
   expect(testPackSelectors.isLoading.instances.instance1(state())).toEqual(true);
   expect(testPackSelectors.isLoading.instances.instance2(state())).toEqual(false);
   expect(testPackSelectors.result(state())).toEqual(null);
 
-  createReduxPack._store.dispatch(testPackActions.run());
+  createReduxPack._store?.dispatch(testPackActions.run());
 
   expect(testPackSelectors.isLoading(state())).toEqual(true);
   expect(testPackSelectors.isLoading.instances.instance1(state())).toEqual(true);
   expect(testPackSelectors.isLoading.instances.instance2(state())).toEqual(false);
   expect(testPackSelectors.result(state())).toEqual(null);
 
-  createReduxPack._store.dispatch(testPackActions.run.instances.instance2());
+  createReduxPack._store?.dispatch(testPackActions.run.instances.instance2());
 
   expect(testPackSelectors.isLoading(state())).toEqual(true);
   expect(testPackSelectors.isLoading.instances.instance1(state())).toEqual(true);
   expect(testPackSelectors.isLoading.instances.instance2(state())).toEqual(true);
   expect(testPackSelectors.result(state())).toEqual(null);
 
-  createReduxPack._store.dispatch(testPackActions.success.instances.instance2({ i: 2 }));
+  createReduxPack._store?.dispatch(testPackActions.success.instances.instance2({ i: 2 }));
 
   expect(testPackSelectors.isLoading(state())).toEqual(true);
   expect(testPackSelectors.isLoading.instances.instance1(state())).toEqual(true);
   expect(testPackSelectors.isLoading.instances.instance2(state())).toEqual(false);
   expect(testPackSelectors.result(state())).toEqual({ i: 2 });
 
-  createReduxPack._store.dispatch(testPackActions.success({ i: 0 }));
+  createReduxPack._store?.dispatch(testPackActions.success({ i: 0 }));
 
   expect(testPackSelectors.isLoading(state())).toEqual(false);
   expect(testPackSelectors.isLoading.instances.instance1(state())).toEqual(true);
   expect(testPackSelectors.isLoading.instances.instance2(state())).toEqual(false);
   expect(testPackSelectors.result(state())).toEqual({ i: 0 });
 
-  createReduxPack._store.dispatch(testPackActions.run.instances.instance2());
+  createReduxPack._store?.dispatch(testPackActions.run.instances.instance2());
 
   expect(testPackSelectors.isLoading(state())).toEqual(false);
   expect(testPackSelectors.isLoading.instances.instance1(state())).toEqual(true);
   expect(testPackSelectors.isLoading.instances.instance2(state())).toEqual(true);
   expect(testPackSelectors.result(state())).toEqual({ i: 0 });
 
-  createReduxPack._store.dispatch(testPackActions.success.instances.instance1({ i: 1 }));
+  createReduxPack._store?.dispatch(testPackActions.success.instances.instance1({ i: 1 }));
 
   expect(testPackSelectors.isLoading(state())).toEqual(false);
   expect(testPackSelectors.isLoading.instances.instance1(state())).toEqual(false);
   expect(testPackSelectors.isLoading.instances.instance2(state())).toEqual(true);
   expect(testPackSelectors.result(state())).toEqual({ i: 1 });
 
-  createReduxPack._store.dispatch(testPackActions.success.instances.instance2({ i: 2 }));
+  createReduxPack._store?.dispatch(testPackActions.success.instances.instance2({ i: 2 }));
 
   expect(testPackSelectors.isLoading(state())).toEqual(false);
   expect(testPackSelectors.isLoading.instances.instance1(state())).toEqual(false);
   expect(testPackSelectors.isLoading.instances.instance2(state())).toEqual(false);
   expect(testPackSelectors.result(state())).toEqual({ i: 2 });
 
-  createReduxPack._store.dispatch(resetAction());
+  createReduxPack._store?.dispatch(resetAction());
 
   expect(testPackSelectors.isLoading(state())).toEqual(false);
   expect(testPackSelectors.isLoading.instances.instance1(state())).toEqual(false);
@@ -432,22 +449,22 @@ test('check store manipulations \\w instances', () => {
 test('check pack reducer and initial state injection', async () => {
   expect(Object.keys(createReduxPack._reducers)).toHaveLength(4);
   expect(Object.keys(createReduxPack._initialState)).toHaveLength(4);
-  expect(Object.keys(createReduxPack._reducers[reducerName])).toHaveLength(3);
-  expect(Object.keys(createReduxPack._initialState[reducerName])).toHaveLength(3);
+  expect(Object.keys(createReduxPack._reducers[reducerName])).toHaveLength(4);
+  expect(Object.keys(createReduxPack._initialState[reducerName])).toHaveLength(2);
 
   createReduxPack({ name: 'AnotherPack', reducerName });
 
   expect(Object.keys(createReduxPack._reducers)).toHaveLength(4);
   expect(Object.keys(createReduxPack._initialState)).toHaveLength(4);
-  expect(Object.keys(createReduxPack._reducers[reducerName])).toHaveLength(6);
-  expect(Object.keys(createReduxPack._initialState[reducerName])).toHaveLength(6);
+  expect(Object.keys(createReduxPack._reducers[reducerName])).toHaveLength(7);
+  expect(Object.keys(createReduxPack._initialState[reducerName])).toHaveLength(4);
 
   createReduxPack({ name: 'AnotherPackIntoAnotherReducer', reducerName: reducerName + 1 });
 
   expect(Object.keys(createReduxPack._reducers)).toHaveLength(5);
   expect(Object.keys(createReduxPack._initialState)).toHaveLength(5);
   expect(Object.keys(createReduxPack._reducers[reducerName + 1])).toHaveLength(3);
-  expect(Object.keys(createReduxPack._initialState[reducerName + 1])).toHaveLength(3);
+  expect(Object.keys(createReduxPack._initialState[reducerName + 1])).toHaveLength(2);
 });
 
 test('check tool reducer and initial state injection', async () => {
@@ -455,30 +472,28 @@ test('check tool reducer and initial state injection', async () => {
     reducerName,
     { param1: 1, param2: 2, param3: 3 },
     {
-      a1: (state) => ({
-        ...state,
+      a1: createReducerCase(() => ({
         param1: 1,
         param2: 2,
         param3: 3,
-      }),
+      })),
     },
   );
 
   expect(Object.keys(createReduxPack._reducers)).toHaveLength(5);
   expect(Object.keys(createReduxPack._initialState)).toHaveLength(5);
-  expect(Object.keys(createReduxPack._reducers[reducerName])).toHaveLength(7);
-  expect(Object.keys(createReduxPack._initialState[reducerName])).toHaveLength(9);
+  expect(Object.keys(createReduxPack._reducers[reducerName])).toHaveLength(8);
+  expect(Object.keys(createReduxPack._initialState[reducerName])).toHaveLength(7);
 
   createReducerOn(
     reducerName + 2,
     { param1: 1, param2: 2, param3: 3 },
     {
-      a1: (state) => ({
-        ...state,
+      a1: createReducerCase(() => ({
         param1: 1,
         param2: 2,
         param3: 3,
-      }),
+      })),
     },
   );
 
@@ -490,18 +505,15 @@ test('check tool reducer and initial state injection', async () => {
 
 test('check pack with payloadMap definitions and recursions', () => {
   expect(payloadPackSelectors.isLoading).toBeDefined();
-  expect(payloadPackSelectors.error).toBeDefined();
   expect(payloadPackSelectors.result).toBeDefined();
   expect(payloadPackSelectors.item1).toBeDefined();
   expect(payloadPackSelectors.item2).toBeDefined();
   expect(payloadPackStateNames.isLoading).toBeDefined();
-  expect(payloadPackStateNames.error).toBeDefined();
   expect(payloadPackStateNames.result).toBeDefined();
   expect(payloadPackStateNames.item1).toBeDefined();
-  expect(payloadPackStateNames.passedItem1).not.toBeDefined();
+  expect((payloadPackStateNames as any).passedItem1).not.toBeDefined();
   expect(payloadPackStateNames.item2).toBeDefined();
   expect(payloadPackInitial[payloadPackStateNames.isLoading]).toBeDefined();
-  expect(payloadPackInitial[payloadPackStateNames.error]).toBeDefined();
   expect(payloadPackInitial[payloadPackStateNames.result]).toBeDefined();
   expect(payloadPackInitial[payloadPackStateNames.item1]).toBeDefined();
   expect(payloadPackInitial[payloadPackStateNames.item2]).toBeDefined();
@@ -509,13 +521,12 @@ test('check pack with payloadMap definitions and recursions', () => {
   expect(payloadPackInitial[payloadPackStateNames.item3][payloadPackStateNames.item3.innerItem1]).toBeDefined();
 
   expect(payloadPackSelectors.isLoading(state())).toEqual(false);
-  expect(payloadPackSelectors.error(state())).toEqual(null);
   expect(payloadPackSelectors.result(state())).toEqual(null);
   expect(payloadPackSelectors.item1(state())).toEqual(null);
   expect(payloadPackSelectors.item2(state())).toEqual({ b: 1 });
   expect(payloadPackSelectors.item2.a(state())).toEqual(1);
   expect(payloadPackSelectors.item3(state())).toEqual({ innerItem1: '3.1', innerItem2: '3.2' });
-  expect(payloadPackSelectors.item3(state())[payloadPackStateNames.item3.innerItem1]).toEqual('3.1');
+  expect(payloadPackSelectors.item3.innerItem1(state())).toEqual('3.1');
   expect(payloadPackSelectors.item3(state()).innerItem1).toEqual('3.1');
   expect(payloadPackSelectors.item3.innerItem1(state())).toEqual('3.1');
   expect(payloadPackSelectors.item4.innerItem1.innerInnerItem1(state())).toEqual('4.1.1');
@@ -523,9 +534,13 @@ test('check pack with payloadMap definitions and recursions', () => {
   expect('b' in payloadPackSelectors.item2).toEqual(false);
   expect(payloadPackSelectors.item2.a(state())).toEqual(1);
   expect(payloadPackSelectors.item2.a === payloadPackSelectors.item2.a).toEqual(true);
+  // @ts-ignore
   expect(payloadPackSelectors.item2.b).toBeDefined();
+  // @ts-ignore
   expect(payloadPackSelectors.item2.b(state())).toEqual(undefined);
+  // @ts-ignore
   expect(payloadPackSelectors.item2.b.c).toBeDefined();
+  // @ts-ignore
   expect(payloadPackSelectors.item2.b.c(state())).toEqual(undefined);
   expect('b' in payloadPackSelectors.item2(state())).toEqual(true);
   expect('innerItem1' in payloadPackSelectors.item4).toEqual(true);
@@ -535,20 +550,18 @@ test('check pack with payloadMap definitions and recursions', () => {
 });
 
 test('check pack with payloadMap state management', () => {
-  createReduxPack._store.dispatch(payloadPackActions.run());
+  createReduxPack._store?.dispatch(payloadPackActions.run());
 
   expect(payloadPackSelectors.isLoading(state())).toEqual(true);
-  expect(payloadPackSelectors.error(state())).toEqual(null);
   expect(payloadPackSelectors.result(state())).toEqual(null);
   expect(payloadPackSelectors.item1(state())).toEqual(null);
   expect(payloadPackSelectors.item2(state())).toEqual({ b: 1 });
 
-  createReduxPack._store.dispatch(
+  createReduxPack._store?.dispatch(
     payloadPackActions.success({ passedItem1: 'setItem1', item2: { a: 2 }, innerItem1: '3.1 new' }),
   );
 
   expect(payloadPackSelectors.isLoading(state())).toEqual(false);
-  expect(payloadPackSelectors.error(state())).toEqual(null);
   expect(payloadPackSelectors.result(state())).toEqual({
     passedItem1: 'setItem1',
     item2: { a: 2 },
@@ -558,28 +571,26 @@ test('check pack with payloadMap state management', () => {
   expect(payloadPackSelectors.item2(state())).toEqual({ b: 2 });
   expect(payloadPackSelectors.item3(state())).toEqual({ innerItem1: '3.1 new', innerItem2: undefined });
 
-  createReduxPack._store.dispatch(payloadPackActions.run());
+  createReduxPack._store?.dispatch(payloadPackActions.run());
 
   expect(payloadPackSelectors.isLoading(state())).toEqual(true);
-  expect(payloadPackSelectors.error(state())).toEqual(null);
   expect(payloadPackSelectors.result(state())).toEqual({
     passedItem1: 'setItem1',
     item2: { a: 2 },
     innerItem1: '3.1 new',
   });
-  expect(payloadPackSelectors.item1(state())).toEqual('setItem1');
+  expect(payloadPackSelectors.item1(state())).toEqual(null);
   expect(payloadPackSelectors.item2(state())).toEqual({ b: 2 });
 
-  createReduxPack._store.dispatch(payloadPackActions.success(undefined));
+  createReduxPack._store?.dispatch(payloadPackActions.success(undefined));
 
   expect(payloadPackSelectors.isLoading(state())).toEqual(false);
-  expect(payloadPackSelectors.error(state())).toEqual(null);
   expect(payloadPackSelectors.result(state())).toEqual(undefined);
   expect(payloadPackSelectors.item1(state())).toEqual(undefined);
   expect(payloadPackSelectors.item2(state())).toEqual({ b: 10 });
   expect(payloadPackSelectors.item2.a(state())).toEqual(10);
 
-  createReduxPack._store.dispatch(payloadPackActions.fail('error1'));
+  createReduxPack._store?.dispatch(payloadPackActions.fail('error1'));
 
   expect(payloadPackSelectors.isLoading(state())).toEqual(false);
   expect(payloadPackSelectors.error(state())).toEqual('error1');
@@ -587,10 +598,19 @@ test('check pack with payloadMap state management', () => {
   expect(payloadPackSelectors.item1(state())).toEqual(undefined);
   expect(payloadPackSelectors.item2(state())).toEqual({ b: 10 });
   expect(payloadPackSelectors.item2.a(state())).toEqual(10);
+
+  createReduxPack._store?.dispatch(payloadPackActions.setError('errorSet'));
+
+  expect(payloadPackSelectors.isLoading(state())).toEqual(false);
+  expect(payloadPackSelectors.error(state())).toEqual('errorSet');
+  expect(payloadPackSelectors.result(state())).toEqual(undefined);
+  expect(payloadPackSelectors.item1(state())).toEqual(undefined);
+  expect(payloadPackSelectors.item2(state())).toEqual({ b: 10 });
+  expect(payloadPackSelectors.item2.a(state())).toEqual(10);
 });
 
 test('check pack with payloadMap modification', () => {
-  createReduxPack._store.dispatch(
+  createReduxPack._store?.dispatch(
     payloadPackActions.success({ passedItem1: 'setItem1', item2: { a: 2 }, keyForItem4: { sad: 1 } }),
   );
   expect(payloadPackSelectors.result(state())).toEqual({
@@ -599,30 +619,37 @@ test('check pack with payloadMap modification', () => {
     keyForItem4: { sad: 1 },
   });
   expect(payloadPackSelectors.item1(state())).toEqual('setItem1');
-  expect(modifyPackSelectors[payloadPackStateNames.item4].sad(state())).toEqual('sad');
+  // expect(modifyPackSelectors[payloadPackStateNames.item4].sad(state())).toEqual('sad');
   expect(payloadPackSelectors.item2(state())).toEqual({ b: 2 });
+  expect(modifyPackSelectors.error(state())).toEqual(null);
 
-  createReduxPack._store.dispatch(modifyPackActions.success({ passedItem1: 1 }));
+  createReduxPack._store?.dispatch(modifyPackActions.fail('error'));
+  expect(modifyPackSelectors.error(state())).toEqual('error');
+
+  createReduxPack._store?.dispatch(modifyPackActions.run());
+  expect(modifyPackSelectors.error(state())).toEqual(null);
+
+  createReduxPack._store?.dispatch(modifyPackActions.fail({ error: true }));
+  expect(modifyPackSelectors.error(state())).toEqual(true);
+
+  createReduxPack._store?.dispatch(modifyPackActions.success({ passedItem1: 1 }));
 
   expect(modifyPackSelectors.isLoading(state())).toEqual(false);
-  expect(modifyPackSelectors.error(state())).toEqual(null);
   expect(modifyPackSelectors.result(state())).toEqual({ passedItem1: 1 });
   expect(payloadPackSelectors.item1(state())).toEqual('setItem11');
-  expect(modifyPackSelectors[payloadPackStateNames.item4].sad(state())).toEqual('sad1');
+  expect(modifyPackSelectors.error(state())).toEqual(null);
+  // expect(modifyPackSelectors[payloadPackStateNames.item4].sad(state())).toEqual('sad1');
 });
 
 test('check pack with generator', () => {
   expect(genPackName).toBeDefined();
   expect(genPackSelectors.isLoading).toBeDefined();
-  expect(genPackSelectors.error).toBeDefined();
   expect(genPackSelectors.result).toBeDefined();
   expect(genPackSelectors.flag).toBeDefined();
   expect(genPackStateNames.isLoading).toBeDefined();
-  expect(genPackStateNames.error).toBeDefined();
   expect(genPackStateNames.result).toBeDefined();
   expect(genPackStateNames.flag).toBeDefined();
   expect(genPackInitial[genPackStateNames.isLoading]).toBeDefined();
-  expect(genPackInitial[genPackStateNames.error]).toBeDefined();
   expect(genPackInitial[genPackStateNames.result]).toBeDefined();
   expect(genPackInitial[genPackStateNames.flag]).toBeDefined();
   expect(genPackActions.run).toBeDefined();
@@ -642,12 +669,13 @@ test('check pack with generator', () => {
 });
 
 test('check mergeGenerators', () => {
+  // @ts-ignore
   expect(() => mergeGenerators([], null)).toThrowError();
 
   expect(createSelector(reducerName + 4, 'somethingCool')(state())).toEqual('not quite');
   expect(createSelector(reducerName + 4, 'somethingElse')(state())).toEqual('not cool');
   console.warn = jest.fn();
-  createReduxPack._store.dispatch(genPackActions.run());
+  createReduxPack._store?.dispatch(genPackActions.run());
   expect(console.warn).toHaveBeenCalled();
   expect(createSelector(reducerName + 4, 'somethingCool')(state())).toEqual('right here');
   expect(createSelector(reducerName + 4, 'somethingElse')(state())).toEqual('as cool');
@@ -658,9 +686,9 @@ test('check reducer update freeze', () => {
   createReduxPack.freezeReducerUpdates();
   expect(createReduxPack.preventReducerUpdates).toEqual(true);
   createReduxPack({ reducerName: reducerName + 7, name: 'FreezeCheck' });
-  expect(Object.keys(state())).toHaveLength(6);
+  expect(Object.keys(state() as any)).toHaveLength(6);
   createReduxPack.releaseReducerUpdates();
-  expect(Object.keys(state())).toHaveLength(7);
+  expect(Object.keys(state() as any)).toHaveLength(7);
   expect(createReduxPack.preventReducerUpdates).toEqual(false);
 });
 
@@ -670,55 +698,75 @@ test('check simple template \\w store manipulations', () => {
   expect(simplePackStateNames.counter).toBeDefined();
   expect(simplePackStateNames.setter).toBeDefined();
   expect(simplePackStateNames.setter.ofValue).toBeDefined();
+  expect(simplePackStateNames.extraField).toBeDefined();
   expect(simplePackActions).toBeDefined();
   expect(simplePackActions.set).toBeDefined();
   expect(simplePackActions.reset).toBeDefined();
+  expect(simplePackActions.extraAction).toBeDefined();
   expect(simplePackSelectors.value).toBeDefined();
   expect(simplePackSelectors.counter).toBeDefined();
   expect(simplePackSelectors.setter).toBeDefined();
   expect(simplePackSelectors.setter.ofValue).toBeDefined();
+  expect(simplePackSelectors.extraField).toBeDefined();
   expect(simplePackActionNames.set).toBeDefined();
   expect(simplePackActionNames.reset).toBeDefined();
+  expect(simplePackActionNames.extraAction).toBeDefined();
 
   expect(simplePackSelectors.value(state())).toEqual(-10);
   expect(simplePackSelectors.counter(state())).toEqual(0);
   expect(simplePackSelectors.setter(state())).toEqual({ ofValue: 0 });
   expect(simplePackSelectors.setter.ofValue(state())).toEqual(0);
+  expect(simplePackSelectors.extraField(state())).toEqual(0);
 
-  createReduxPack._store.dispatch(simplePackActions.set(3));
+  createReduxPack._store?.dispatch(simplePackActions.set(3));
 
   expect(simplePackSelectors.value(state())).toEqual(3);
   expect(simplePackSelectors.counter(state())).toEqual(3);
   expect(simplePackSelectors.setter(state())).toEqual({ ofValue: 3 });
   expect(simplePackSelectors.setter.ofValue(state())).toEqual(3);
 
-  createReduxPack._store.dispatch(simplePackActions.set(5));
+  createReduxPack._store?.dispatch(simplePackActions.set(5));
 
   expect(simplePackSelectors.value(state())).toEqual(5);
   expect(simplePackSelectors.counter(state())).toEqual(8);
   expect(simplePackSelectors.setter(state())).toEqual({ ofValue: 5 });
   expect(simplePackSelectors.setter.ofValue(state())).toEqual(5);
 
-  createReduxPack._store.dispatch(simplePackActions.set());
+  createReduxPack._store?.dispatch(simplePackActions.set());
 
-  expect(simplePackSelectors.value(state())).toEqual(undefined);
+  expect(simplePackSelectors.value(state())).toEqual(null);
   expect(simplePackSelectors.counter(state())).toEqual(8);
   expect(simplePackSelectors.setter(state())).toEqual({ ofValue: 420 });
   expect(simplePackSelectors.setter.ofValue(state())).toEqual(420);
 
-  createReduxPack._store.dispatch(simplePackActions.set(2));
+  createReduxPack._store?.dispatch(simplePackActions.set(2));
 
   expect(simplePackSelectors.value(state())).toEqual(2);
   expect(simplePackSelectors.counter(state())).toEqual(10);
   expect(simplePackSelectors.setter(state())).toEqual({ ofValue: 2 });
   expect(simplePackSelectors.setter.ofValue(state())).toEqual(2);
+  expect(simplePackSelectors.extraField(state())).toEqual(0);
+  expect(simplePackSelectors.extraField(state())).toEqual(0);
 
-  createReduxPack._store.dispatch(simplePackActions.reset());
+  createReduxPack._store?.dispatch(simplePackActions.extraAction(123));
+
+  expect(simplePackSelectors.value(state())).toEqual(2);
+  expect(simplePackSelectors.counter(state())).toEqual(10);
+  expect(simplePackSelectors.setter(state())).toEqual({ ofValue: 2 });
+  expect(simplePackSelectors.setter.ofValue(state())).toEqual(2);
+  expect(simplePackSelectors.extraField(state())).toEqual(123);
+
+  createReduxPack._store?.dispatch(simplePackActions.extraAction(123));
+
+  expect(simplePackSelectors.extraField(state())).toEqual(246);
+
+  createReduxPack._store?.dispatch(simplePackActions.reset());
 
   expect(simplePackSelectors.value(state())).toEqual(-10);
   expect(simplePackSelectors.counter(state())).toEqual(0);
   expect(simplePackSelectors.setter(state())).toEqual({ ofValue: 0 });
   expect(simplePackSelectors.setter.ofValue(state())).toEqual(0);
+  expect(simplePackSelectors.extraField(state())).toEqual(0);
 });
 
 test('check createAction', () => {
@@ -727,14 +775,14 @@ test('check createAction', () => {
   expect(action).toBeDefined();
   expect(action()).toEqual({ type: 'text' });
   expect(action({ a: 1 })).toEqual({ type: 'text', payload: { a: 1 } });
-  const actionWithPrepare = createAction('text', ({ a }) => a);
+  const actionWithPrepare = createAction('text', ({ a }: { a: number }) => a);
   expect(actionWithPrepare({ a: 1 })).toEqual({ type: 'text', payload: 1 });
 });
 
-test('check mergePayloadWithResult', () => {
-  expect(mergePayloadWithResult).toBeDefined();
+test('check mergePayloadByKey', () => {
+  expect(mergePayloadByKey).toBeDefined();
   expect(
-    mergePayloadWithResult(
+    mergePayloadByKey(
       {},
       [
         { id: 1, f: 1 },
@@ -744,7 +792,7 @@ test('check mergePayloadWithResult', () => {
     ),
   ).toEqual({ 1: { id: 1, f: 1 }, 2: { id: 2, f: 3 } });
   expect(
-    mergePayloadWithResult(
+    mergePayloadByKey(
       { 1: { id: 1, f: 0 } },
       [
         { id: 1, f: 1 },
@@ -753,12 +801,12 @@ test('check mergePayloadWithResult', () => {
       'id',
     ),
   ).toEqual({ 1: { id: 1, f: 1 }, 2: { id: 2, f: 3 } });
-  expect(mergePayloadWithResult({ 1: { id: 1, f: 0 } }, { id: 3, f: 2 }, 'id')).toEqual({
+  expect(mergePayloadByKey({ 1: { id: 1, f: 0 } }, { id: 3, f: 2 }, 'id')).toEqual({
     1: { id: 1, f: 0 },
     3: { id: 3, f: 2 },
   });
   expect(
-    mergePayloadWithResult(
+    mergePayloadByKey(
       { 1: { id: 1, f: 0 } },
       {
         4: {
@@ -773,7 +821,7 @@ test('check mergePayloadWithResult', () => {
     3: { id: 3, f: 2 },
   });
   expect(
-    mergePayloadWithResult(
+    mergePayloadByKey(
       { 1: { id: 1, f: 0 } },
       {
         4: {
@@ -787,7 +835,7 @@ test('check mergePayloadWithResult', () => {
     4: { f: 2 },
   });
   expect(
-    mergePayloadWithResult(
+    mergePayloadByKey(
       [],
       [
         { id: 1, f: 1 },
@@ -799,12 +847,12 @@ test('check mergePayloadWithResult', () => {
     { id: 1, f: 1 },
     { id: 2, f: 3 },
   ]);
-  expect(mergePayloadWithResult([{ id: 1, f: 1 }], [{ id: 2, f: 3 }], 'id')).toEqual([
+  expect(mergePayloadByKey([{ id: 1, f: 1 }], [{ id: 2, f: 3 }], 'id')).toEqual([
     { id: 1, f: 1 },
     { id: 2, f: 3 },
   ]);
   expect(
-    mergePayloadWithResult(
+    mergePayloadByKey(
       [{ id: 1, f: 1 }],
       [
         { id: 1, f: 3 },
@@ -816,19 +864,19 @@ test('check mergePayloadWithResult', () => {
     { id: 1, f: 3 },
     { id: 2, f: 2 },
   ]);
-  expect(mergePayloadWithResult([{ id: 1, f: 1 }], { id: 2, f: 2 }, 'id')).toEqual([
+  expect(mergePayloadByKey([{ id: 1, f: 1 }], { id: 2, f: 2 }, 'id')).toEqual([
     { id: 1, f: 1 },
     { id: 2, f: 2 },
   ]);
-  expect(mergePayloadWithResult([{ id: 1, f: 1 }], { id: 1, f: 2 }, 'id')).toEqual([{ id: 1, f: 2 }]);
-  expect(mergePayloadWithResult([{ id: 1, f: 1 }], { f: 2 }, 'id')).toEqual([{ id: 1, f: 1 }, { f: 2 }]);
-  expect(mergePayloadWithResult([{ id: 1, f: 1 }], [{ f: 2 }, { id: 2, f: 3 }, { id: 1, f: 2 }], 'id')).toEqual([
+  expect(mergePayloadByKey([{ id: 1, f: 1 }], { id: 1, f: 2 }, 'id')).toEqual([{ id: 1, f: 2 }]);
+  expect(mergePayloadByKey([{ id: 1, f: 1 }], { f: 2 }, 'id')).toEqual([{ id: 1, f: 1 }, { f: 2 }]);
+  expect(mergePayloadByKey([{ id: 1, f: 1 }], [{ f: 2 }, { id: 2, f: 3 }, { id: 1, f: 2 }], 'id')).toEqual([
     { f: 2 },
     { id: 2, f: 3 },
     { id: 1, f: 2 },
   ]);
-  expect(mergePayloadWithResult([{ id: 1, f: 1 }], undefined, 'id')).toEqual([{ id: 1, f: 1 }]);
-  expect(mergePayloadWithResult([{ id: 1, f: 1 }], 123)).toEqual(123);
+  expect(mergePayloadByKey([{ id: 1, f: 1 }], undefined, 'id')).toEqual([{ id: 1, f: 1 }]);
+  expect(mergePayloadByKey([{ id: 1, f: 1 }], 123)).toEqual(123);
 });
 
 test('check createSelector', () => {
@@ -895,11 +943,13 @@ test('check getRootReducer', () => {
   expect(createReduxPack._initialState[reducerName + 1]).toBeDefined();
   expect(createReduxPack._initialState[reducerName + 1].sad).toBeDefined();
   expect(createReduxPack._initialState[reducerName + 1].sad).toEqual(0);
-  expect(Object.keys(createReduxPack._initialState[reducerName + 1])).toHaveLength(4);
+  expect(Object.keys(createReduxPack._initialState[reducerName + 1])).toHaveLength(3);
 });
 
 test('check errors and fallbacks', () => {
+  // @ts-ignore
   expect(() => createReduxPack().withGenerator()).toThrowError('CRPack received invalid package info');
+  // @ts-ignore
   expect(createReduxPack({}).name).toContain('NamelessPack');
   expect(createReduxPack._reducers['UnspecifiedReducer']).toBeDefined();
   expect(makeKeysReadable(1)).toEqual(1);

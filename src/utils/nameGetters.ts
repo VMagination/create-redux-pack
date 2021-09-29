@@ -10,5 +10,6 @@ export const getResultName = (name: string): string => `result ${name}`;
 export const getValueName = (name: string): string => `value ${name}`;
 export const getErrorName = (name: string): string => `error ${name}`;
 export const getKeyName = (name: string, key: string): string => (hasCRPackName(key) ? key : `${key} of ${name}`);
+export const getActionName = (name: string, actionName: string): string => `${actionName} ${name}`;
 export const getNameWithInstance = (name: string, instance?: string): string =>
   instance ? `${name} [Instance]: ${instance}` : name;

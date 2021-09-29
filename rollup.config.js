@@ -1,5 +1,6 @@
 import nodeResolve from '@rollup/plugin-node-resolve'
 import babel from '@rollup/plugin-babel'
+import { uglify } from "rollup-plugin-uglify";
 // import replace from '@rollup/plugin-replace'
 import typescript from 'rollup-plugin-typescript2'
 import commonjs from 'rollup-plugin-commonjs';
@@ -27,7 +28,7 @@ export default [
   // CommonJS
   {
     input: 'src/index.ts',
-    output: { file: 'lib/index.js', format: 'cjs', indent: false },
+    output: { exports: 'named', file: 'lib/index.js', format: 'cjs', indent: false },
     external: makeExternalPredicate([
       ...Object.keys(pkg.dependencies || {}),
       ...Object.keys(pkg.peerDependencies || {}),
@@ -48,6 +49,7 @@ export default [
         presets: ['@babel/preset-env'],
         babelHelpers: "runtime",
       }),
+      uglify(),
     ],
   },
 /*

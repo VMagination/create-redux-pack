@@ -1,1 +1,1 @@
-export declare const makeKeysReadable: <T extends Record<string, any>>(obj: T) => T;
+export declare const makeKeysReadable: <T>(obj: T) => T;

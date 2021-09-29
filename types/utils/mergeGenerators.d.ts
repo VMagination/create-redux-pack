@@ -1,2 +1,2 @@
-import { CreateReduxPackParams, CRPackGenObj, CRPackPayloadMap } from '../types';
-export declare const mergeGenerators: <T = Record<string, any>, S = Record<string, any>, PayloadMain = any, PayloadMap extends CRPackPayloadMap<S> = any>(...generators: CRPackGenObj<S, PayloadMain, PayloadMap, CreateReduxPackParams<S, PayloadMain, PayloadMap>>[]) => T;
+import { CombineFn, Params, CRPackWithGen } from '../types';
+export declare const mergeGenerators: <Config extends Params<any, any, any, any, any, any>, Gen1 extends CRPackWithGen<Config, any>, Gen2 extends CRPackWithGen<Config, any>>(generators_0: Gen1, generators_1: Gen2) => CombineFn<Gen1, Gen2>;

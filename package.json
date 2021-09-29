@@ -1,6 +1,6 @@
 {
   "name": "create-redux-pack",
-  "version": "0.11.0",
+  "version": "1.0.0-rc.1",
   "description": "Generator for redux",
   "repository": "https://github.com/VladislavMukhamediev/create-redux-pack",
   "main": "lib/index.js",
@@ -52,12 +52,13 @@
     "jest": "^25.4.0",
     "prettier": "^2.0.5",
     "redux": "^4.0.5",
-    "rollup": "^2.33.3",
+    "rollup": "^2.57.0",
     "rollup-plugin-babel": "^4.4.0",
     "rollup-plugin-commonjs": "^10.1.0",
     "rollup-plugin-terser": "^7.0.2",
     "rollup-plugin-typescript2": "^0.29.0",
-    "typescript": "^4.4.0-beta"
+    "rollup-plugin-uglify": "^6.0.4",
+    "typescript": "^4.4.3"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^1.4.0",
