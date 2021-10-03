@@ -257,7 +257,7 @@ Accepts object with options or nested object with end section containing options
 | actions | Actions[] | actions specified in packInfo, define on what actions to expect this field update, fallbacks to ['success' / 'set'] |
 | formatSelector | (data: State) => any | function to format value for selector of this field to return. |
 | formatPayload | (payload: any) => State | function to get value for current field from payload, *overrides formatMergePayload* |
-| modifyValue | (value, prevValue, action: { code }) => State | used to set new value according or using previous value, *overrides mergeByKey* |
+| modifyValue | (value, prevValue, action: { code, getStateWithSelector }) => State | used to set new value according or using previous value, *overrides mergeByKey*. getStateWithSelector accepts a CRPack selector, will only work if trying to get value from the same reducer |
 | mergeByKey | keyof State | if not empty will make reducers try to merge default value with payload using key as identificator, initial and payload should be an array or an object otherwise no merge will commence |
 | formatMergePayload | (payload: any) => State[keyof State] | function to get value for current field from payload during merging |
 

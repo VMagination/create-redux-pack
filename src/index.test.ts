@@ -81,7 +81,11 @@ const {
     item1: {
       actions: ['success', 'run'],
       formatPayload: (payload: { passedItem1: string } | void) => payload?.passedItem1 ?? null,
-      modifyValue: (val, _prevVal, { code }) => (code === 'success' ? val : null),
+      modifyValue: (val, _prevVal, { code, getStateWithSelector }) => {
+        getStateWithSelector(payloadPackSelectors.item2);
+        getStateWithSelector(modifyPackSelectors.result);
+        return code === 'success' ? val : null;
+      },
       initial: null as null | string,
     },
     item2: {

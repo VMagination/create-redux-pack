@@ -103,6 +103,7 @@ export const requestGen: CRPackArbitraryGen = {
   }),
   reducer: <Config extends Params>({
     name,
+    reducerName,
     formatPayload,
     formatMergePayload,
     mergeByKey,
@@ -118,7 +119,17 @@ export const requestGen: CRPackArbitraryGen = {
           ...accum,
           [getActionName(name, action)]: createReducerCase((state, { payload }) => {
             const newState = {};
-            addMappedPayloadToState(newState, payloadMap, name, payload, payload, state, action);
+            addMappedPayloadToState({
+              obj: newState,
+              payloadMap,
+              name,
+              payload,
+              payloadField: payload,
+              state,
+              mainState: state,
+              reducerName,
+              action,
+            });
             return newState;
           }),
         }),
@@ -128,7 +139,17 @@ export const requestGen: CRPackArbitraryGen = {
       const newState = {
         [getNameWithInstance(getLoadingName(name), meta?.instance)]: true,
       };
-      addMappedPayloadToState(newState, payloadMap, name, payload, payload, state, 'run');
+      addMappedPayloadToState({
+        obj: newState,
+        payloadMap,
+        name,
+        payload,
+        payloadField: payload,
+        state,
+        mainState: state,
+        reducerName,
+        action: 'run',
+      });
       return newState;
     }),
     [getSuccessName(name)]: createReducerCase((state, { payload, meta }) => {
@@ -140,14 +161,35 @@ export const requestGen: CRPackArbitraryGen = {
           ? modifyValue(finalPayload, state[getResultName(name)])
           : mergePayloadByKey(state[getResultName(name)], finalPayload, mergeByKey),
       };
-      addMappedPayloadToState(newState, payloadMap, name, payload, payload, state, 'success', true);
+      addMappedPayloadToState({
+        obj: newState,
+        payloadMap,
+        name,
+        payload,
+        payloadField: payload,
+        state,
+        mainState: state,
+        reducerName,
+        action: 'success',
+        isMainAction: true,
+      });
       return newState;
     }),
     [getFailName(name)]: createReducerCase((state, { payload, meta }) => {
       const newState = {
         [getNameWithInstance(getLoadingName(name), meta?.instance)]: false,
       };
-      addMappedPayloadToState(newState, payloadMap, name, payload, payload, state, 'fail');
+      addMappedPayloadToState({
+        obj: newState,
+        payloadMap,
+        name,
+        payload,
+        payloadField: payload,
+        state,
+        mainState: state,
+        reducerName,
+        action: 'fail',
+      });
       return newState;
     }),
   }),

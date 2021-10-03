@@ -103,6 +103,7 @@ export const simpleGen: CRPackArbitraryGen = {
     formatPayload,
     formatMergePayload,
     actions,
+    reducerName,
     modifyValue,
     payloadMap = {},
   }: Config): CRPackReducer => ({
@@ -113,7 +114,17 @@ export const simpleGen: CRPackArbitraryGen = {
           ...accum,
           [getActionName(name, action)]: createReducerCase((state, { payload }) => {
             const newState = {};
-            addMappedPayloadToState(newState, payloadMap, name, payload, payload, state, action);
+            addMappedPayloadToState({
+              obj: newState,
+              payloadMap,
+              name,
+              payload,
+              payloadField: payload,
+              state,
+              mainState: state,
+              reducerName,
+              action,
+            });
             return newState;
           }),
         }),
@@ -127,7 +138,18 @@ export const simpleGen: CRPackArbitraryGen = {
           ? modifyValue(payload, state[getValueName(name)])
           : mergePayloadByKey(state[getValueName(name)], finalPayload, mergeByKey),
       };
-      addMappedPayloadToState(newState, payloadMap, name, payload, payload, state, 'set', true);
+      addMappedPayloadToState({
+        obj: newState,
+        payloadMap,
+        name,
+        payload,
+        payloadField: payload,
+        state,
+        mainState: state,
+        reducerName,
+        action: 'set',
+        isMainAction: true,
+      });
       return newState;
     }),
     [getResetName(name)]: createReducerCase((state, { payload }) => {
@@ -136,7 +158,17 @@ export const simpleGen: CRPackArbitraryGen = {
         ...getInitial(payloadMap, name),
       };
       const resetWithValue = {};
-      addMappedPayloadToState(resetWithValue, payloadMap, name, payload, payload, state, 'reset');
+      addMappedPayloadToState({
+        obj: resetWithValue,
+        payloadMap,
+        name,
+        payload,
+        payloadField: payload,
+        state,
+        mainState: state,
+        reducerName,
+        action: 'reset',
+      });
       return mergeObjects(newState, resetWithValue);
     }),
   }),

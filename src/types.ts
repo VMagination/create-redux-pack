@@ -575,16 +575,6 @@ type Expand<T> = Expandv2<T>;
 
 type MergeByKey<T> = T extends Array<any> ? keyof T[number] : T extends Record<string, any> ? keyof T : never;
 
-/*type CRPackPayloadMapEndItem<T, Actions extends PropertyKey, PayloadMain = any, SelectorRT = any> = {
-  initial: T;
-  formatPayload?: (payload: PayloadMain, action: Actions) => T;
-  formatSelector?: (state: T) => SelectorRT;
-  fallback?: T;
-  actions?: Array<Actions>;
-  mergeByKey?: MergeByKey<T> | string;
-  modifyValue?: (payloadValue: T, prevStateValue: T, action: { code: Actions }) => T;
-};*/
-
 type CRPackMergable<T> = T extends Array<infer A> ? A | A[] : T extends Record<string, infer R> ? R | R[] : T;
 
 type CRPackPayloadMapEndItem<T, Actions extends PropertyKey, PayloadMain = any, SelectorRT = any> = {
@@ -597,7 +587,16 @@ type CRPackPayloadMapEndItem<T, Actions extends PropertyKey, PayloadMain = any, 
       mergeByKey?: never;
       formatMergePayload?: never;
       formatPayload?: (payload: PayloadMain, action: Actions) => T;
-      modifyValue?: (payloadValue: T, prevStateValue: T, action: { code: Actions }) => T;
+      modifyValue?: (
+        payloadValue: T,
+        prevStateValue: T,
+        extras: {
+          code: Actions;
+          getStateWithSelector: <T extends OutputSelector<any, any, any>>(
+            selector: T,
+          ) => T extends OutputSelector<any, infer S, any> ? S : never;
+        },
+      ) => T;
     }
   | {
       formatPayload?: never;

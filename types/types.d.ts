@@ -228,8 +228,9 @@ declare type CRPackPayloadMapEndItem<T, Actions extends PropertyKey, PayloadMain
     mergeByKey?: never;
     formatMergePayload?: never;
     formatPayload?: (payload: PayloadMain, action: Actions) => T;
-    modifyValue?: (payloadValue: T, prevStateValue: T, action: {
+    modifyValue?: (payloadValue: T, prevStateValue: T, extras: {
         code: Actions;
+        getStateWithSelector: <T extends OutputSelector<any, any, any>>(selector: T) => T extends OutputSelector<any, infer S, any> ? S : never;
     }) => T;
 } | {
     formatPayload?: never;
