@@ -14,8 +14,9 @@ import {
   getStateNames,
   getSuccessName,
 } from '../utils';
-import { createSelector as createReSelector, OutputSelector } from 'reselect';
+import { OutputSelector } from 'reselect';
 import { mergePayloadByKey } from '../utils/mergePayloadByKey';
+import { selectorWithInstances } from '../utils/selectorWithInstances';
 
 export const requestDefaultActions = ['run', 'success', 'fail'];
 
@@ -48,38 +49,11 @@ export const requestGen: CRPackArbitraryGen = {
         {},
       ),
   }),
-  selectors: <Config extends Params>({ name, reducerName, payloadMap = {} }: Config) => {
+  selectors: <Config extends Params>({ name, reducerName, payloadMap = {}, defaultInitial }: Config) => {
     const getReducerState = (state: any) => state[reducerName];
     return {
-      isLoading: Object.assign(
-        createReSelector<any, any, boolean>(getReducerState, (state) => state[getLoadingName(name)]),
-        {
-          instances: new Proxy(
-            {},
-            {
-              get: (t, p, s) => {
-                const result = Reflect.get(t, p, s);
-                if (result) return result;
-                if (typeof p !== 'string') return result;
-                Reflect.set(
-                  t,
-                  p,
-                  createReSelector<any, any, boolean>(
-                    getReducerState,
-                    (state) => state[getNameWithInstance(getLoadingName(name), p)] ?? false,
-                  ),
-                  s,
-                );
-                return Reflect.get(t, p, s);
-              },
-            },
-          ),
-        },
-      ),
-      result: createReSelector<any, any, Config extends Params<infer S> ? S : never>(
-        getReducerState,
-        (state) => state[getResultName(name)],
-      ),
+      isLoading: selectorWithInstances(getReducerState, getLoadingName(name), false),
+      result: selectorWithInstances(getReducerState, getResultName(name), defaultInitial),
       ...(getSelectors(payloadMap, name, getReducerState) as {
         [P in keyof (Config extends Params<infer S> ? S : never)]: OutputSelector<
           any,
@@ -109,6 +83,8 @@ export const requestGen: CRPackArbitraryGen = {
     mergeByKey,
     modifyValue,
     defaultFallback,
+    defaultInitial,
+    defaultInstanced,
     actions,
     payloadMap = {},
   }: Config): CRPackReducer => ({
@@ -117,7 +93,7 @@ export const requestGen: CRPackArbitraryGen = {
       .reduce(
         (accum, action) => ({
           ...accum,
-          [getActionName(name, action)]: createReducerCase((state, { payload }) => {
+          [getActionName(name, action)]: createReducerCase((state, { payload, meta }) => {
             const newState = {};
             addMappedPayloadToState({
               obj: newState,
@@ -129,13 +105,14 @@ export const requestGen: CRPackArbitraryGen = {
               mainState: state,
               reducerName,
               action,
+              instance: meta?.instance,
             });
             return newState;
           }),
         }),
         {},
       ),
-    [getRunName(name)]: createReducerCase((state, { meta, payload }) => {
+    [getRunName(name)]: createReducerCase((state, { payload, meta }) => {
       const newState = {
         [getNameWithInstance(getLoadingName(name), meta?.instance)]: true,
       };
@@ -149,17 +126,19 @@ export const requestGen: CRPackArbitraryGen = {
         mainState: state,
         reducerName,
         action: 'run',
+        instance: meta?.instance,
       });
       return newState;
     }),
     [getSuccessName(name)]: createReducerCase((state, { payload, meta }) => {
       const format = formatPayload || formatMergePayload;
       const finalPayload = (format ? format(payload) : payload) ?? defaultFallback;
+      const key = getNameWithInstance(getResultName(name), defaultInstanced ? meta?.instance : undefined);
       const newState = {
         [getNameWithInstance(getLoadingName(name), meta?.instance)]: false,
-        [getResultName(name)]: modifyValue
-          ? modifyValue(finalPayload, state[getResultName(name)])
-          : mergePayloadByKey(state[getResultName(name)], finalPayload, mergeByKey),
+        [key]: modifyValue
+          ? modifyValue(finalPayload, state[key] ?? defaultInitial)
+          : mergePayloadByKey(state[key] ?? defaultInitial, finalPayload, mergeByKey),
       };
       addMappedPayloadToState({
         obj: newState,
@@ -172,6 +151,7 @@ export const requestGen: CRPackArbitraryGen = {
         reducerName,
         action: 'success',
         isMainAction: true,
+        instance: meta?.instance,
       });
       return newState;
     }),
@@ -188,6 +168,7 @@ export const requestGen: CRPackArbitraryGen = {
         state,
         mainState: state,
         reducerName,
+        instance: meta?.instance,
         action: 'fail',
       });
       return newState;

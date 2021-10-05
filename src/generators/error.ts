@@ -5,6 +5,7 @@ import {
   createSelector,
   getErrorName,
   getFailName,
+  getNameWithInstance,
   getRunName,
   getSuccessName,
 } from '../utils';
@@ -25,8 +26,14 @@ export const requestErrorGen = {
     >,
   }),
   reducer: <Config extends Params>({ name }: Config): CRPackReducer => ({
-    [getRunName(name)]: createReducerCase(() => ({ [getErrorName(name)]: null })),
-    [getSuccessName(name)]: createReducerCase(() => ({ [getErrorName(name)]: null })),
-    [getFailName(name)]: createReducerCase((_state, { payload }) => ({ [getErrorName(name)]: payload })),
+    [getRunName(name)]: createReducerCase((_state, { meta }) => ({
+      [getNameWithInstance(getErrorName(name), meta?.instance)]: null,
+    })),
+    [getSuccessName(name)]: createReducerCase((_state, { meta }) => ({
+      [getNameWithInstance(getErrorName(name), meta?.instance)]: null,
+    })),
+    [getFailName(name)]: createReducerCase((_state, { payload, meta }) => ({
+      [getNameWithInstance(getErrorName(name), meta?.instance)]: payload,
+    })),
   }),
 };

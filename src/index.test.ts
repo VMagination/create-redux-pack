@@ -206,8 +206,8 @@ const {
   actions: ['extraAction'],
   payloadMap: {
     counter: {
-      formatPayload: (val: number | void) => val,
-      initial: 0 as number | void,
+      formatPayload: (val: number | void) => val || 0,
+      initial: 0 as number,
       fallback: 0,
       modifyValue: (val, prevValue) => {
         return (prevValue || 0) + (val || 0);
@@ -756,6 +756,7 @@ test('check simple template \\w store manipulations', () => {
 
   expect(simplePackSelectors.value(state())).toEqual(2);
   expect(simplePackSelectors.counter(state())).toEqual(10);
+  expect(simplePackSelectors.counter.instances[1](state())).toEqual(0);
   expect(simplePackSelectors.setter(state())).toEqual({ ofValue: 2 });
   expect(simplePackSelectors.setter.ofValue(state())).toEqual(2);
   expect(simplePackSelectors.extraField(state())).toEqual(123);

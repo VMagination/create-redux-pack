@@ -1,14 +1,29 @@
 import { CreateReduxPackAction, CRPackReducer, Params } from '../types';
-import { createAction, createReducerCase, getResetName, getErrorName } from '../utils';
+import { createAction, createReducerCase, getResetName } from '../utils';
+
+const resetState = (initial: any, state: any, newState: any) => {
+  const stateKeys = Object.keys(state);
+  Object.keys(initial).forEach((key) => {
+    const instances = stateKeys.filter((sKey) => sKey.startsWith(key) && / \[Instance]: .+$/.test(sKey));
+    instances.forEach((instance) => {
+      newState[instance] = initial[key];
+    });
+    if (initial[key] && state[key] && typeof initial[key] === 'object' && typeof state[key] === 'object')
+      resetState(initial[key], state[key], newState[key]);
+  });
+};
 
 export const resetActionGen = {
   actions: <Config extends Params>({ name }: Config) => ({
-    reset: createAction(getResetName(name), (payload) => payload?.error ?? payload) as CreateReduxPackAction<[void]>,
+    reset: createAction(getResetName(name)) as CreateReduxPackAction<[void]>,
   }),
   reducer: <Config extends Params>({ name }: Config, originalResult: any): CRPackReducer => ({
-    [getResetName(name)]: createReducerCase((state) => ({
-      ...(getErrorName(name) in state ? { [getErrorName(name)]: null } : {}),
-      ...originalResult?.initialState,
-    })),
+    [getResetName(name)]: createReducerCase((state) => {
+      const newState = {
+        ...originalResult?.initialState,
+      };
+      resetState(originalResult?.initialState || {}, state, newState);
+      return newState;
+    }),
   }),
 };

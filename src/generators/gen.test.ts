@@ -41,21 +41,26 @@ const { selectors: resetGenSelectors, actions: resetGenActions, errorSelector } 
 const { selectors: mergeSelectors, actions: mergeActions } = createReduxPack({
   name: packName,
   reducerName: reducerName,
-  actions: ['sad', 'asd'],
+  actions: ['sad', 'asd', 'wasd'],
+  defaultInstanced: true,
+  mergeByKey: 'id',
+  defaultInitial: {} as { [key: string]: { id: string; value: string } },
   payloadMap: {
     field: {
       actions: ['sad'],
+      instanced: ['asd'],
       initial: {} as { [key: string]: { id: string; value: string } },
       mergeByKey: 'id',
     },
     field2: {
-      actions: ['asd'],
+      actions: ['asd', 'wasd'],
+      instanced: ['asd'],
       initial: {} as { [key: string]: { id: string; value: string } },
       mergeByKey: 'id',
       formatMergePayload: (a: { id: string; value: string }) => a,
     },
   },
-});
+}).withGenerator(resetActionGen);
 
 test('check default gens merge', () => {
   configureStore();
@@ -164,13 +169,106 @@ test('check merge by key payload', () => {
   expect(mergeSelectors.field(state())).toEqual({});
   expect(mergeSelectors.field2(state())).toEqual({});
 
-  createReduxPack._store?.dispatch(mergeActions.sad({ field: [{ id: 'asd', value: '1' }] }));
+  createReduxPack._store?.dispatch(mergeActions.sad.instances.wasd({ field: [{ id: 'asd', value: '1' }] }));
   expect(mergeSelectors.field(state())).toEqual({ asd: { id: 'asd', value: '1' } });
-  createReduxPack._store?.dispatch(mergeActions.sad({ field: { id: 'sad', value: '2' } }));
+  createReduxPack._store?.dispatch(mergeActions.sad.instances.sad({ field: { id: 'sad', value: '2' } }));
   expect(mergeSelectors.field(state())).toEqual({ asd: { id: 'asd', value: '1' }, sad: { id: 'sad', value: '2' } });
 
-  createReduxPack._store?.dispatch(mergeActions.asd({ id: 'asd', value: '1' }));
-  expect(mergeSelectors.field2(state())).toEqual({ asd: { id: 'asd', value: '1' } });
-  createReduxPack._store?.dispatch(mergeActions.asd({ id: 'sad', value: '2' }));
-  expect(mergeSelectors.field2(state())).toEqual({ asd: { id: 'asd', value: '1' }, sad: { id: 'sad', value: '2' } });
+  createReduxPack._store?.dispatch(mergeActions.asd.instances.asd({ id: 'asd', value: '1' }));
+  expect(mergeSelectors.field2(state())).toEqual({});
+  createReduxPack._store?.dispatch(mergeActions.asd({ id: 'wasd', value: '1' }));
+  expect(mergeSelectors.field2(state())).toEqual({ wasd: { id: 'wasd', value: '1' } });
+
+  expect(mergeSelectors.field2.instances.asd(state())).toEqual({ asd: { id: 'asd', value: '1' } });
+  createReduxPack._store?.dispatch(mergeActions.asd.instances.asd({ id: 'sad', value: '2' }));
+  expect(mergeSelectors.field2.instances.asd(state())).toEqual({
+    asd: { id: 'asd', value: '1' },
+    sad: { id: 'sad', value: '2' },
+  });
+  expect(mergeSelectors.field2(state())).toEqual({ wasd: { id: 'wasd', value: '1' } });
+
+  createReduxPack._store?.dispatch(mergeActions.wasd.instances.asd({ id: 'sasd', value: '1' }));
+  expect(mergeSelectors.field2(state())).toEqual({
+    wasd: { id: 'wasd', value: '1' },
+    sasd: { id: 'sasd', value: '1' },
+  });
+
+  createReduxPack._store?.dispatch(mergeActions.asd({ id: 'wsad', value: '1' }));
+  expect(mergeSelectors.field2(state())).toEqual({
+    wasd: { id: 'wasd', value: '1' },
+    sasd: { id: 'sasd', value: '1' },
+    wsad: { id: 'wsad', value: '1' },
+  });
+  expect(mergeSelectors.field2.instances.asd(state())).toEqual({
+    asd: { id: 'asd', value: '1' },
+    sad: { id: 'sad', value: '2' },
+  });
+});
+
+test('check merge by key default instanced', () => {
+  expect(mergeSelectors.result(state())).toEqual({});
+  expect(mergeSelectors.result.instances.a(state())).toEqual({});
+  expect(mergeSelectors.result.instances.b(state())).toEqual({});
+
+  createReduxPack._store?.dispatch(mergeActions.success.instances.a({ id: 'asd', value: '1' }));
+  createReduxPack._store?.dispatch(mergeActions.success.instances.a({ id: 'asd', value: '1' }));
+
+  expect(mergeSelectors.result(state())).toEqual({});
+  expect(mergeSelectors.result.instances.a(state())).toEqual({ asd: { id: 'asd', value: '1' } });
+  expect(mergeSelectors.result.instances.b(state())).toEqual({});
+
+  createReduxPack._store?.dispatch(mergeActions.success.instances.b({ id: 'sasd', value: '1' }));
+  createReduxPack._store?.dispatch(mergeActions.success.instances.a({ id: 'asd', value: '1' }));
+
+  expect(mergeSelectors.result(state())).toEqual({});
+  expect(mergeSelectors.result.instances.a(state())).toEqual({ asd: { id: 'asd', value: '1' } });
+  expect(mergeSelectors.result.instances.b(state())).toEqual({ sasd: { id: 'sasd', value: '1' } });
+
+  createReduxPack._store?.dispatch(mergeActions.success({ id: 'sasd', value: '1' }));
+  createReduxPack._store?.dispatch(mergeActions.success.instances.b({ id: 'sasd', value: '1' }));
+  createReduxPack._store?.dispatch(mergeActions.success.instances.a({ id: 'asd', value: '1' }));
+
+  expect(mergeSelectors.result(state())).toEqual({ sasd: { id: 'sasd', value: '1' } });
+  expect(mergeSelectors.result.instances.a(state())).toEqual({ asd: { id: 'asd', value: '1' } });
+  expect(mergeSelectors.result.instances.b(state())).toEqual({ sasd: { id: 'sasd', value: '1' } });
+
+  createReduxPack._store?.dispatch(mergeActions.success([{ id: 'asd', value: '1' }]));
+  createReduxPack._store?.dispatch(mergeActions.success.instances.b({ id: 'asd', value: '1' }));
+  createReduxPack._store?.dispatch(mergeActions.success.instances.a({ id: 'sasd', value: '1' }));
+
+  expect(mergeSelectors.result(state())).toEqual({ sasd: { id: 'sasd', value: '1' }, asd: { id: 'asd', value: '1' } });
+  expect(mergeSelectors.result.instances.a(state())).toEqual({
+    asd: { id: 'asd', value: '1' },
+    sasd: { id: 'sasd', value: '1' },
+  });
+  expect(mergeSelectors.result.instances.b(state())).toEqual({
+    sasd: { id: 'sasd', value: '1' },
+    asd: { id: 'asd', value: '1' },
+  });
+
+  createReduxPack._store?.dispatch(
+    mergeActions.success({
+      a1: { id: 'a1', value: '1' },
+      sasd: { id: 'sasd', value: '1' },
+      a2: { id: 'a3', value: '1' },
+    }),
+  );
+  expect(mergeSelectors.result(state())).toEqual({
+    a1: { id: 'a1', value: '1' },
+    a3: { id: 'a3', value: '1' },
+    sasd: { id: 'sasd', value: '1' },
+    asd: { id: 'asd', value: '1' },
+  });
+});
+
+test('check reset action with instances', () => {
+  createReduxPack._store?.dispatch(mergeActions.reset());
+
+  expect(mergeSelectors.result(state())).toEqual({});
+  expect(mergeSelectors.result.instances.a(state())).toEqual({});
+  expect(mergeSelectors.result.instances.b(state())).toEqual({});
+  expect(mergeSelectors.field2(state())).toEqual({});
+  expect(mergeSelectors.field2.instances.asd(state())).toEqual({});
+  expect(mergeSelectors.field(state())).toEqual({});
+  expect(mergeSelectors.field.instances.a(state())).toEqual({});
 });

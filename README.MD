@@ -194,9 +194,9 @@ CRPack fully and internally supports lazy loading. If you are using webpack redu
 
 > Lazy loading only works if store was configured using provided configureStore utility.
 
-### Instances for loading
+### Instances for actions
 
-It's annoying how sometimes fetching data updates loading everywhere showing loader when and where you did not intend to. With action instances you can separate loaders accordingly.
+It's annoying how sometimes fetching data updates loading everywhere showing loader when and where you did not intend to. With action instances you can separate loaders as well as other values accordingly.
 
 ### Dynamic Logger
 
@@ -234,6 +234,7 @@ Creates pack of redux components with one of default generators
 | reducerName | string | yes | name of reducer, will be used to add or inject logic into specified reducer |
 | template | 'request' / 'simple' | no | template to use when creating a package | 'request' |
 | actions | string[] | no | extra actions to be generated, *have to be declared here before using with payloadMap* |
+| instanced | boolean | no | should default value be instanced on main action instances | false |
 | idGeneration | boolean | no | should generate random field id or keep it static | true / specified default CRPack value |
 | defaultInitial | Default | no | initial value of default result/value, should be defined if you are using result/value for state management | null |
 | formatPayload | (payload: any) => Default | no | function to format payload for default value field, *overrides formatMergePayload* |
@@ -254,6 +255,7 @@ Accepts object with options or nested object with end section containing options
 | :---: | :----: | :--- | 
 | initial* | any (State) | required, initial value of this field |
 | fallback | any (State) | value that will replace current field value in case falsy payload will be provided to an action. It's just a guard to prevent potential crashes of bad payload, fallbacks to `null` |
+| instanced | boolean / Actions[] | on what actions field's instanced value should be updated, by default only updates main value |
 | actions | Actions[] | actions specified in packInfo, define on what actions to expect this field update, fallbacks to ['success' / 'set'] |
 | formatSelector | (data: State) => any | function to format value for selector of this field to return. |
 | formatPayload | (payload: any) => State | function to get value for current field from payload, *overrides formatMergePayload* |

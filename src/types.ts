@@ -234,6 +234,10 @@ export type CRPackRequestActions<Config extends Params, Actions extends Property
           Config extends Params<any, any, any, infer Default, infer DefaultPayload>
             ? 'formatPayload' extends keyof Config
               ? DefaultPayload
+              : 'formatMergePayload' extends keyof Config
+              ? GetFirstParam<Config['formatMergePayload']>
+              : 'mergeByKey' extends keyof Config
+              ? CRPackMergable<Default>
               : Default
             : never
         >,
@@ -242,6 +246,8 @@ export type CRPackRequestActions<Config extends Params, Actions extends Property
   }
 >;
 
+type SelectorWithInstances<T extends OutputSelector<any, any, any>> = T & { instances: Record<string, T> };
+
 type FSelector<T, S> = T extends Record<string, any>
   ? OutputSelector<any, T, any> & { [K in keyof S]: FSelector<S[K], S[K]> }
   : OutputSelector<any, T, any>;
@@ -249,12 +255,12 @@ type FSelector<T, S> = T extends Record<string, any>
 type GetSelector<T> = 'formatSelector' extends keyof T
   ? T extends CRPackPayloadMapItem<infer S, any, any, infer Selector>
     ? 'initial' extends keyof T
-      ? FSelector<Selector, S>
+      ? SelectorWithInstances<FSelector<Selector, S>>
       : OutputSelector<any, Selector, any> & { [K in Exclude<keyof T, 'formatSelector'>]: GetSelector<T[K]> }
     : never
   : 'initial' extends keyof T
   ? T extends CRPackPayloadMapItem<infer S, any>
-    ? FSelector<S, S>
+    ? SelectorWithInstances<FSelector<S, S>>
     : never
   : T extends CRPackPayloadMapItem<infer S, any>
   ? OutputSelector<any, S, any> & { [K in Exclude<keyof T, 'formatSelector'>]: GetSelector<T[K]> }
@@ -263,38 +269,42 @@ type GetSelector<T> = 'formatSelector' extends keyof T
 export type CRPackRequestSelectors<Config extends Params> = Expand<
   'payloadMap' extends keyof Config
     ? {
-        result: OutputSelector<
-          any,
-          PrioritizeNonNever<
-            Config extends Params<infer S, any, any, infer Default, unknown, infer Selector>
-              ? 'formatSelector' extends keyof Config
-                ? Selector
-                : unknown extends Default
-                ? S
-                : Default
-              : never,
+        result: SelectorWithInstances<
+          OutputSelector<
+            any,
+            PrioritizeNonNever<
+              Config extends Params<infer S, any, any, infer Default, unknown, infer Selector>
+                ? 'formatSelector' extends keyof Config
+                  ? Selector
+                  : unknown extends Default
+                  ? S
+                  : Default
+                : never,
+              any
+            >,
             any
-          >,
-          any
+          >
         >;
-        isLoading: OutputSelector<any, boolean, any> & { instances: Record<string, OutputSelector<any, boolean, any>> };
+        isLoading: SelectorWithInstances<OutputSelector<any, boolean, any>>;
       } & { [K in keyof Config['payloadMap']]: GetSelector<Config['payloadMap'][K]> }
     : {
-        result: OutputSelector<
-          any,
-          PrioritizeNonNever<
-            Config extends Params<infer S, any, any, infer Default, any, infer Selector>
-              ? 'formatSelector' extends keyof Config
-                ? Selector
-                : unknown extends Default
-                ? S
-                : Default
-              : never,
+        result: SelectorWithInstances<
+          OutputSelector<
+            any,
+            PrioritizeNonNever<
+              Config extends Params<infer S, any, any, infer Default, any, infer Selector>
+                ? 'formatSelector' extends keyof Config
+                  ? Selector
+                  : unknown extends Default
+                  ? S
+                  : Default
+                : never,
+              any
+            >,
             any
-          >,
-          any
+          >
         >;
-        isLoading: OutputSelector<any, boolean, any> & { instances: Record<string, OutputSelector<any, boolean, any>> };
+        isLoading: SelectorWithInstances<OutputSelector<any, boolean, any>>;
       }
 >;
 
@@ -575,13 +585,18 @@ type Expand<T> = Expandv2<T>;
 
 type MergeByKey<T> = T extends Array<any> ? keyof T[number] : T extends Record<string, any> ? keyof T : never;
 
-type CRPackMergable<T> = T extends Array<infer A> ? A | A[] : T extends Record<string, infer R> ? R | R[] : T;
+type CRPackMergable<T> = T extends Array<infer A>
+  ? A | A[]
+  : T extends Record<string, infer R>
+  ? R | R[] | Record<string, R>
+  : T;
 
 type CRPackPayloadMapEndItem<T, Actions extends PropertyKey, PayloadMain = any, SelectorRT = any> = {
   initial: T;
   formatSelector?: (state: T) => SelectorRT;
   fallback?: T;
-  actions?: Array<Actions>;
+  actions?: Actions[];
+  instanced?: boolean | Actions[];
 } & (
   | {
       mergeByKey?: never;
@@ -640,6 +655,7 @@ export type Params<
   reducerName: string;
   defaultInitial?: Default;
   defaultFallback?: Default;
+  defaultInstanced?: boolean;
   actions?: Actions[];
   idGeneration?: boolean;
   formatSelector?: (state: Default) => DefaultSelector;
@@ -655,9 +671,7 @@ export type Params<
       formatPayload?: never;
       modifyValue?: never;
       mergeByKey?: MergeByKey<Default>;
-      formatMergePayload?: (
-        payload: DefaultPayload,
-      ) => Default extends Array<infer A> ? A : Default extends Record<string, infer R> ? R : Default;
+      formatMergePayload?: (payload: DefaultPayload) => CRPackMergable<Default>;
     }
 );
 

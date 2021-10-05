@@ -1,9 +1,10 @@
 import { CreateReduxPackPayloadMap } from '../types';
 import { createSelector as createReSelector } from 'reselect';
 import { getReadableKey } from './getReadableKey';
-import { getKeyName } from './nameGetters';
+import { getKeyName, getNameWithInstance } from './nameGetters';
 import { makeKeysReadable } from './makeKeysReadable';
 import { mergePayloadByKey } from './mergePayloadByKey';
+import { selectorWithInstances } from './selectorWithInstances';
 
 const shouldRecursionEnd = (payloadMapByKey: any) => 'initial' in payloadMapByKey;
 
@@ -48,6 +49,7 @@ export const addStateParam = ({
   payloadField,
   state,
   mainState,
+  instance,
   action,
   isMainAction,
   prefix = '',
@@ -64,19 +66,23 @@ export const addStateParam = ({
   action: string;
   isMainAction: boolean;
   prefix?: string;
+  instance?: string;
 }): void => {
   const payloadMapByKey = payloadMap[key];
-  const stateKey = getKeyName(name, `${prefix}${key}`);
+  const instanced = payloadMapByKey?.instanced;
+  const isInstanced = Array.isArray(instanced) ? instanced.includes(action) : payloadMapByKey?.instanced;
+  const stateKey = getNameWithInstance(getKeyName(name, `${prefix}${key}`), isInstanced ? instance : undefined);
   if ((isMainAction && !payloadMapByKey?.actions) || payloadMapByKey?.actions?.includes(action)) {
     const format = payloadMapByKey?.formatPayload || payloadMapByKey?.formatMergePayload;
     const payloadValue = (format ? format(payload) : payloadField) ?? payloadMapByKey?.fallback;
     const modification = payloadMapByKey?.modifyValue;
     obj[stateKey] = modification
-      ? modification(payloadValue, state[stateKey], {
+      ? modification(payloadValue, state[stateKey] ?? payloadMapByKey?.initial, {
           code: action,
+          instance,
           getStateWithSelector: (selector: any) => selector({ [reducerName]: mainState }),
         })
-      : mergePayloadByKey(state[stateKey], payloadValue, payloadMapByKey?.mergeByKey);
+      : mergePayloadByKey(state[stateKey] ?? payloadMapByKey?.initial, payloadValue, payloadMapByKey?.mergeByKey);
   } else {
     obj[stateKey] = empty;
   }
@@ -92,6 +98,7 @@ export const addMappedPayloadToState = <S = Record<string, any>, PayloadMain = a
   state,
   mainState,
   action,
+  instance,
   isMainAction = false,
   prefix = '',
   isTop = true,
@@ -107,6 +114,7 @@ export const addMappedPayloadToState = <S = Record<string, any>, PayloadMain = a
   action: string;
   isMainAction?: boolean;
   prefix?: string;
+  instance?: string;
   isTop?: boolean;
 }): void => {
   const keys = Object.keys(payloadMap).filter((key) => key !== 'key');
@@ -124,6 +132,7 @@ export const addMappedPayloadToState = <S = Record<string, any>, PayloadMain = a
         state,
         mainState,
         action,
+        instance,
         isMainAction,
         prefix,
       });
@@ -146,6 +155,7 @@ export const addMappedPayloadToState = <S = Record<string, any>, PayloadMain = a
       state: state[innerKey],
       mainState,
       action,
+      instance,
       isMainAction,
       prefix: nextPrefix,
       isTop: false,
@@ -157,9 +167,14 @@ export const addMappedPayloadToState = <S = Record<string, any>, PayloadMain = a
   });
 };
 
-export const getInitial = (payloadMap: Record<string, any>, name: string): Record<string, any> => {
+export const getInitial = (
+  payloadMap: Record<string, any>,
+  name: string,
+  instance?: string,
+  action?: string,
+): Record<string, any> => {
   const initial = {};
-  addMappedInitialToState(initial, payloadMap, name);
+  addMappedInitialToState(initial, payloadMap, name, instance, action);
   return initial;
 };
 
@@ -167,6 +182,8 @@ const addMappedInitialToState = <S = Record<string, any>>(
   obj: Record<string, any>,
   payloadMap: CreateReduxPackPayloadMap<S>,
   name: string,
+  instance?: string,
+  action?: string,
   prefix = '',
 ) => {
   const keys = Object.keys(payloadMap).filter((key) => key !== 'key');
@@ -174,12 +191,14 @@ const addMappedInitialToState = <S = Record<string, any>>(
     const payloadMapByKey: any = payloadMap[key as keyof S];
     const innerKey = getKeyName(name, `${prefix}${key}`);
     if (shouldRecursionEnd(payloadMapByKey)) {
-      obj[innerKey] = payloadMapByKey.initial;
+      const instanced = payloadMapByKey?.instanced;
+      const isInstanced = Array.isArray(instanced) ? instanced.includes(action) : payloadMapByKey?.instanced;
+      obj[getNameWithInstance(innerKey, isInstanced ? instance : undefined)] = payloadMapByKey.initial;
       return;
     }
     const nextPrefix = `${prefix}${getReadableKey(key)}.`;
     obj[innerKey] = obj[innerKey] || {};
-    addMappedInitialToState(obj[innerKey], payloadMapByKey, name, nextPrefix);
+    addMappedInitialToState(obj[innerKey], payloadMapByKey, name, instance, action, nextPrefix);
   });
 };
 
@@ -227,11 +246,20 @@ export const getSelectors = <S>(
 
 const selectorContent = Symbol('CRPack selector content');
 
-const wrapSelector = (prevSelector: any, key: any, format = (state: any) => state): any =>
+const wrapSelector = (
+  prevSelector: any,
+  key: any,
+  format = (state: any) => state,
+  initial = undefined,
+  isTop = false,
+): any =>
   new Proxy(
-    createReSelector(prevSelector, (state: any) => format((state || {})[key])),
+    isTop
+      ? selectorWithInstances(prevSelector, key, initial, format)
+      : createReSelector(prevSelector, (state: any) => format((state || {})[key])),
     {
-      get: (target: any, p) => {
+      get: (target: any, p, s) => {
+        if (Reflect.get(target, p, s)) return Reflect.get(target, p, s);
         if (!target[selectorContent]) {
           target[selectorContent] = {
             [p]: wrapSelector(
@@ -265,7 +293,7 @@ const addMappedSelectors = <S = Record<string, any>>(
     const innerKey = getKeyName(name, `${prefix}${key}`);
     if (shouldRecursionEnd(payloadMapByKey)) {
       const format = payloadMapByKey?.formatSelector || ((state: any) => state);
-      obj[key] = wrapSelector(prevSelector, innerKey, format);
+      obj[key] = wrapSelector(prevSelector, innerKey, format, payloadMapByKey?.initial, true);
       return;
     }
     const innerSelectors = {};

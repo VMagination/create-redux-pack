@@ -1,0 +1,13 @@
+node_modules
+check-later
+coverage
+
+.vscode
+.idea
+
+.DS_Store
+
+# *.lock
+*.log
+
+*.test.*

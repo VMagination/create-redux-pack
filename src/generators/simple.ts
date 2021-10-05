@@ -14,6 +14,7 @@ import {
   createReducerCase,
   getActionName,
   getInitial,
+  getNameWithInstance,
   getResetName,
   getSelectors,
   getSetName,
@@ -21,8 +22,9 @@ import {
   getValueName,
   mergeObjects,
 } from '../utils';
-import { createSelector as createReSelector, OutputSelector } from 'reselect';
+import { OutputSelector } from 'reselect';
 import { mergePayloadByKey } from '../utils/mergePayloadByKey';
+import { selectorWithInstances } from '../utils/selectorWithInstances';
 
 export const simpleDefaultActions = ['set', 'reset'];
 
@@ -63,13 +65,15 @@ export const simpleGen: CRPackArbitraryGen = {
           {},
         ),
     } as CRPackSimpleActionNames<Config extends Params<unknown, infer Actions> ? Actions : never>),
-  selectors: <Config extends Params>({ name, reducerName, payloadMap = {} }: Config): CRPackSimpleSelectors<Config> => {
+  selectors: <Config extends Params>({
+    name,
+    reducerName,
+    payloadMap = {},
+    defaultInitial,
+  }: Config): CRPackSimpleSelectors<Config> => {
     const getReducerState = (state: any) => state[reducerName];
     return {
-      value: createReSelector<any, any, Config extends Params<infer S> ? S : never>(
-        getReducerState,
-        (state) => state[getValueName(name)],
-      ),
+      value: selectorWithInstances(getReducerState, getValueName(name), defaultInitial),
       ...(getSelectors(payloadMap, name, getReducerState) as {
         [P in keyof (Config extends Params<infer S> ? S : never)]: OutputSelector<
           any,
@@ -77,7 +81,7 @@ export const simpleGen: CRPackArbitraryGen = {
           any
         >;
       }),
-    } as CRPackSimpleSelectors<Config>;
+    } as any;
   },
   initialState: <Config extends Params>({
     name,
@@ -100,6 +104,7 @@ export const simpleGen: CRPackArbitraryGen = {
     mergeByKey,
     defaultInitial = null,
     defaultFallback = null,
+    defaultInstanced,
     formatPayload,
     formatMergePayload,
     actions,
@@ -112,7 +117,7 @@ export const simpleGen: CRPackArbitraryGen = {
       .reduce(
         (accum, action) => ({
           ...accum,
-          [getActionName(name, action)]: createReducerCase((state, { payload }) => {
+          [getActionName(name, action)]: createReducerCase((state, { payload, meta }) => {
             const newState = {};
             addMappedPayloadToState({
               obj: newState,
@@ -121,6 +126,7 @@ export const simpleGen: CRPackArbitraryGen = {
               payload,
               payloadField: payload,
               state,
+              instance: meta?.instance,
               mainState: state,
               reducerName,
               action,
@@ -130,13 +136,14 @@ export const simpleGen: CRPackArbitraryGen = {
         }),
         {},
       ),
-    [getSetName(name)]: createReducerCase((state, { payload }) => {
+    [getSetName(name)]: createReducerCase((state, { payload, meta }) => {
       const format = formatPayload || formatMergePayload;
       const finalPayload = (format ? format(payload) : payload) ?? defaultFallback;
+      const key = getNameWithInstance(getValueName(name), defaultInstanced ? meta?.instance : undefined);
       const newState = {
-        [getValueName(name)]: modifyValue
-          ? modifyValue(payload, state[getValueName(name)])
-          : mergePayloadByKey(state[getValueName(name)], finalPayload, mergeByKey),
+        [key]: modifyValue
+          ? modifyValue(payload, state[key] ?? defaultInitial)
+          : mergePayloadByKey(state[key] ?? defaultInitial, finalPayload, mergeByKey),
       };
       addMappedPayloadToState({
         obj: newState,
@@ -147,15 +154,17 @@ export const simpleGen: CRPackArbitraryGen = {
         state,
         mainState: state,
         reducerName,
+        instance: meta?.instance,
         action: 'set',
         isMainAction: true,
       });
       return newState;
     }),
-    [getResetName(name)]: createReducerCase((state, { payload }) => {
+    [getResetName(name)]: createReducerCase((state, { payload, meta }) => {
+      const key = getNameWithInstance(getValueName(name), defaultInstanced ? meta?.instance : undefined);
       const newState = {
-        [getValueName(name)]: defaultInitial,
-        ...getInitial(payloadMap, name),
+        [key]: defaultInitial,
+        ...getInitial(payloadMap, name, meta?.instance, 'reset'),
       };
       const resetWithValue = {};
       addMappedPayloadToState({
@@ -167,6 +176,7 @@ export const simpleGen: CRPackArbitraryGen = {
         state,
         mainState: state,
         reducerName,
+        instance: meta?.instance,
         action: 'reset',
       });
       return mergeObjects(newState, resetWithValue);
