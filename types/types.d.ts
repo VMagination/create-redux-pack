@@ -1,4 +1,4 @@
-import { ActionCreatorWithPreparedPayload, configureStore } from '@reduxjs/toolkit';
+import { ActionCreatorWithPreparedPayload, AnyAction, configureStore } from '@reduxjs/toolkit';
 import { Reducer } from 'redux';
 import { OutputSelector } from 'reselect';
 export declare type CreateReduxPackParams<S, PayloadMain, PayloadMap extends CreateReduxPackPayloadMap<S> = any> = {
@@ -194,6 +194,7 @@ export declare type CreateReduxPackType = {
     simpleDefaultActions: string[];
     requestDefaultActions: string[];
     _idGeneration: boolean;
+    addGlobalReducers: (actionMap: Record<string, (state: any, action: AnyAction, skip: Symbol) => any>) => void;
     setDefaultIdGeneration: (val: boolean) => void;
     updateReducer: () => void;
     isLoggerOn: boolean;

@@ -180,7 +180,7 @@ To add logic of a pack it is required to inject its reducer and initialState int
 
 CRPack is just a utility you can use to create common / simple packs of redux components. Unless you configure store with this library you can just append provided components where you need them. And even if you do configure store with it, it still provides tools to manually create what you need. For example createReducerOn append an action map to reducer and inject it on import (supports lazy loading).
 
-### Packages generates everything yet it's not overgenerated
+### CRPack generates everything yet it's not overgenerated
 
 Package is a utilized proxy object with caching meaning until you actually access a field of that object that field won't be generated.
 
@@ -221,6 +221,7 @@ In context of CRPack all Action Maps referred as Reducers. The difference of ter
 - [toggleReducerUpdates](#createreduxpackfreezereducerupdates)
 - [resetAction](#resetaction)
 - [default id generation](#createreduxpacksetdefaultidgenerationnewdefault)
+- [global reducer injection](#createreduxpackaddglobalreducersactionmap--key-actiontype-state-action-skip-symbol--skip--any-)
 - [createReduxPack[formatNames]](#createreduxpack-name-formation)
 - [createReduxPack[informationalItems]](#createreduxpack_store)
 
@@ -416,6 +417,10 @@ Call returns action that can be dispatched to reset store to initial state.
 
 Sets default id generation value for all packages created after calling this function. **Exists to support libs like redux-persist that require static fields**.
 
+### createReduxPack.addGlobalReducers(actionMap: { [key: actionType]: (state, action, skip: Symbol) => skip | any })
+
+Adds reducer according to action map to update global state. Even if action with global action type dispatched it's still possible to opt out of updates by returning skip symbol passed as third parameter in case this global action is to override some other action conditionally.
+
 ### createReduxPack name formation
 - *createReduxPack*.**getRunName(name)** - returns run action name
 - *createReduxPack*.**getSuccessName(name)** - returns success action name
@@ -442,5 +447,5 @@ Sets default id generation value for all packages created after calling this fun
 - [x] Resolve payloadMap to support nested payload object
 - [x] Add instances for loading
 - [x] PayloadMap for any action
+- [x] Injection to Root Reducer for global actions
 - [ ] Provide utils to work with nested payloadMap within generators
-- [ ] Injection to Root Reducer for global actions

@@ -1,11 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import createReduxPack, {
-  configureStore,
-  mergeGenerators,
-  resetAction,
-  requestErrorGen,
-  resetActionGen,
-} from '../index';
+import createReduxPack, { configureStore, resetAction, requestErrorGen, resetActionGen } from '../index';
+import { simpleGen } from './simple';
 
 const state = () => createReduxPack._store?.getState();
 
@@ -14,12 +9,22 @@ const reducerName = 'TestReducer';
 const payloadMap = {
   name: packName,
   reducerName: reducerName,
-  defaultInitial: null as any,
+  defaultInitial: null as 'sad' | null,
   actions: ['extraAction'],
 };
-const { selectors: testPackSelectors, actions: testPackActions } = createReduxPack(payloadMap).withGenerator(
-  mergeGenerators(requestErrorGen, createReduxPack._generators.simple),
-);
+
+/*const getG = <T extends Params>(_c: T) => ({
+  a: ({ defaultInitial }: T) => defaultInitial as T['defaultInitial'],
+});
+
+const asd = createReduxPack(payloadMap).withGenerator((_c) => getG<typeof _c>(_c));
+
+type d = keyof typeof asd;
+const s = asd.a;*/
+
+const { selectors: testPackSelectors, actions: testPackActions } = createReduxPack(payloadMap)
+  .withGenerator(requestErrorGen)
+  .withGenerator(simpleGen);
 
 const { selectors: resetGenSelectors, actions: resetGenActions, errorSelector } = createReduxPack({
   name: packName,

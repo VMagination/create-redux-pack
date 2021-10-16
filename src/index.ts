@@ -30,7 +30,8 @@ import { resetActionGen } from './generators/reset';
 
 const loggerMatcher: any = () => true;
 
-const cached = Symbol('cached');
+const cached = Symbol('[CRPack]: cached');
+const globalReducerSkip = Symbol('[CRPack]: global reducer skip');
 
 const createReduxPack: CRPackFN & CreateReduxPackType = Object.assign(
   <
@@ -121,12 +122,23 @@ const createReduxPack: CRPackFN & CreateReduxPackType = Object.assign(
           : {}) as Record<string, Reducer>,
       );
       return (state: any, action: AnyAction) => {
+        if (action.type in (createReduxPack as any)._globalReducers) {
+          const result = (createReduxPack as any)._globalReducers[action.type](state, action, globalReducerSkip);
+          if (result !== globalReducerSkip) return result;
+        }
+
         if (action.type === resetAction.type) return createReduxPack._initialState;
+
         return (Object.keys(combinedReducers).length ? combineReducers(combinedReducers) : (state: any) => state)(
           state,
           action,
         );
       };
+    },
+    _globalReducers: {},
+    addGlobalReducers: (actionMap: Record<string, (state: any, action: AnyAction, skip: Symbol) => any>) => {
+      const global = (createReduxPack as any)._globalReducers;
+      (createReduxPack as any)._globalReducers = { ...global, ...actionMap };
     },
     withGenerator: (info: any, generator: any, originalResult: any, prevGen?: any): any => {
       // const info = formatParams(infoRaw, createReduxPack._idGeneration);

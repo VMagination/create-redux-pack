@@ -1,51 +1,15 @@
-import { ActionCreatorWithPreparedPayload, configureStore } from '@reduxjs/toolkit';
+import { ActionCreatorWithPreparedPayload, AnyAction, configureStore } from '@reduxjs/toolkit';
 import { Reducer } from 'redux';
 import { OutputSelector } from 'reselect';
-
-export type CreateReduxPackParams<S, PayloadMain, PayloadMap extends CreateReduxPackPayloadMap<S> = any> = {
-  name: string;
-  defaultInitial?: any;
-  mergeByKey?: any;
-  reducerName: string;
-  formatPayload?: (data: PayloadMain) => any;
-  formatMergePayload?: (data: PayloadMain) => any;
-  payloadMap?: PayloadMap;
-} & (
-  | { template?: 'simple' }
-  | {
-      template?: 'request';
-    }
-);
 
 export type Action<T> = {
   type: string;
   payload: T;
 } & Record<string, any>;
 
-export type CreateReduxPackGeneratorBlock<RT = any> = <
-  S = Record<string, any>,
-  PayloadMain = any,
-  RTD = Record<string, any>,
-  PayloadMap extends CRPackPayloadMap<S> = any,
-  Info extends CreateReduxPackParams<S, PayloadMain, PayloadMap> = CreateReduxPackParams<S, PayloadMain, PayloadMap>
->(
-  info: CreateReduxPackParams<S, PayloadMain, PayloadMap> & Info,
-) => RT | RTD;
-
-export type CreateReduxPackGenerator = {
-  actions: CreateReduxPackGeneratorBlock;
-  stateNames: CreateReduxPackGeneratorBlock;
-  actionNames: CreateReduxPackGeneratorBlock;
-  initialState: CreateReduxPackGeneratorBlock;
-  reducer: CreateReduxPackGeneratorBlock;
-  selectors: CreateReduxPackGeneratorBlock;
-};
-
 export type CRPackReducer = Record<string, (state: any, action: Action<Record<string, any>>) => any>;
 
 export type CRPackInitialState<Config> = Config extends Params<infer S> ? S & Record<string, any> : never;
-
-export type CRPackPayloadMap<S> = Record<string | keyof S, any>;
 
 type CRPackStateName<S> = S extends Record<string, any>
   ? {
@@ -523,6 +487,7 @@ export type CreateReduxPackType = {
   simpleDefaultActions: string[];
   requestDefaultActions: string[];
   _idGeneration: boolean;
+  addGlobalReducers: (actionMap: Record<string, (state: any, action: AnyAction, skip: Symbol) => any>) => void;
   setDefaultIdGeneration: (val: boolean) => void;
   updateReducer: () => void;
   isLoggerOn: boolean;

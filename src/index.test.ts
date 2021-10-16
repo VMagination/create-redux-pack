@@ -14,7 +14,7 @@ import createReduxPack, {
 } from './index';
 import { mergePayloadByKey } from './utils/mergePayloadByKey';
 
-const state = () => createReduxPack._store?.getState();
+const state = (): any => createReduxPack._store?.getState();
 
 test('pack exists', () => {
   expect(createReduxPack).toBeDefined();
@@ -374,8 +374,21 @@ test('check store manipulations', () => {
   expect(testPackSelectors.isLoading(state())).toEqual(false);
   expect(testPackSelectors.result(state())).toEqual({ nothing: 'here' });
 
+  const justANumber = 'justANumber';
+  createReduxPack.addGlobalReducers({
+    [justANumber]: (_s, p, skip) => (typeof p.payload === 'string' ? skip : { ..._s, a: 1 }),
+  });
+  const savedState = state();
+
+  createReduxPack._store?.dispatch({ type: justANumber, payload: '1' });
+  expect(state()).toEqual(savedState);
+
+  createReduxPack._store?.dispatch({ type: justANumber, payload: 2 });
+  expect(state().a).toEqual(1);
+
   createReduxPack._store?.dispatch(resetAction());
 
+  expect(state().a).toEqual(undefined);
   expect(testPackSelectors.isLoading(state())).toEqual(false);
   expect(testPackSelectors.result(state())).toEqual(null);
 });
