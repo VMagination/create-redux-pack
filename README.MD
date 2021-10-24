@@ -27,6 +27,7 @@ npm install --save create-redux-pack
       stateNames,
       actionNames,
       actions,
+      simplePackActions, // actions === simplePackActions
       selectors,
       initialState,
       reducer,
@@ -182,7 +183,7 @@ CRPack is just a utility you can use to create common / simple packs of redux co
 
 ### CRPack generates everything yet it's not overgenerated
 
-Package is a utilized proxy object with caching meaning until you actually access a field of that object that field won't be generated.
+Package is a utilized proxy object with caching meaning until you actually access a field of that object that field won't be generated. And for convenience reasons, a part of a package can be referenced from several fields easing naming.
 
 ### Selectors are fully dynamic
 
@@ -265,6 +266,9 @@ Accepts object with options or nested object with end section containing options
 | formatMergePayload | (payload: any) => State[keyof State] | function to get value for current field from payload during merging |
 
 #### Request Pack contains
+
+> package results can be accessed using fields starting with package's name and ending with anything from the list below 
+> (for example package named - samplePack will add samplePackActions field as well as the actions field itself)
 
 - **name** - contains generated name of pack
 - **actions** - contains default actions

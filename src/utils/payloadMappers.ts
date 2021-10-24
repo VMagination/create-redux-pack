@@ -11,12 +11,14 @@ const shouldRecursionEnd = (payloadMapByKey: any) => 'initial' in payloadMapByKe
 const empty = Symbol('CRPack value: empty');
 
 const isTreeEmpty = (obj: any): boolean => {
-  const c = Object.keys(obj).every((key) => {
-    if (obj[key] && typeof obj[key] === 'object') {
-      return isTreeEmpty(obj[key]);
-    }
-    return obj[key] === empty;
-  });
+  const c = Array.isArray(obj)
+    ? false
+    : Object.keys(obj).every((key) => {
+        if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
+          return isTreeEmpty(obj[key]);
+        }
+        return obj[key] === empty;
+      });
   return c;
 };
 

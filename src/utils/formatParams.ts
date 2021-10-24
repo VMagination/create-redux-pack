@@ -24,7 +24,7 @@ export const formatParams = <
     } = rawParams;
     if (formatComplete in params) return rawParams as any;
     const name = `[${paramsName}]: CRPack-${idGeneration ? Math.random().toString(36).substr(2, 9) : 'static'}`;
-    return { name, reducerName, template, [formatComplete]: true, ...params } as any;
+    return { name, reducerName, originalName: paramsName, template, [formatComplete]: true, ...params } as any;
   } catch (e) {
     throw Error('CRPack received invalid package info');
   }

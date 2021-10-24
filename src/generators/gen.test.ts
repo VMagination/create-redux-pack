@@ -4,7 +4,7 @@ import { simpleGen } from './simple';
 
 const state = () => createReduxPack._store?.getState();
 
-const packName = 'Request + Simple + Error';
+const packName = 'RequestSimpleError';
 const reducerName = 'TestReducer';
 const payloadMap = {
   name: packName,
@@ -22,12 +22,14 @@ const asd = createReduxPack(payloadMap).withGenerator((_c) => getG<typeof _c>(_c
 type d = keyof typeof asd;
 const s = asd.a;*/
 
-const { selectors: testPackSelectors, actions: testPackActions } = createReduxPack(payloadMap)
+const { selectors: testPackSelectors, actions: testPackActions, requestSimpleErrorSelectors } = createReduxPack(
+  payloadMap,
+)
   .withGenerator(requestErrorGen)
   .withGenerator(simpleGen);
 
-const { selectors: resetGenSelectors, actions: resetGenActions, errorSelector } = createReduxPack({
-  name: packName,
+const { selectors: resetGenSelectors, multiGenSelectors, actions: resetGenActions, errorSelector } = createReduxPack({
+  name: 'multiGen',
   reducerName: reducerName,
   defaultInitial: null as number | null,
   formatPayload: (p: { a: number }) => p.a,
@@ -41,10 +43,9 @@ const { selectors: resetGenSelectors, actions: resetGenActions, errorSelector } 
     allActions: (_info, prevPack) => prevPack.actions,
     allSelectors: (_info, prevPack) => prevPack.selectors,
   });
-// }).withGenerator(mergeGenerators(requestErrorGen, resetActionGen));
 
-const { selectors: mergeSelectors, actions: mergeActions } = createReduxPack({
-  name: packName,
+const { selectors: mergeSelectors, actions: mergeActions, withGenPayloadCustomActionsActions } = createReduxPack({
+  name: 'WithGenPayloadCustomActions',
   reducerName: reducerName,
   actions: ['sad', 'asd', 'wasd'],
   defaultInstanced: true,
@@ -69,6 +70,7 @@ const { selectors: mergeSelectors, actions: mergeActions } = createReduxPack({
 
 test('check default gens merge', () => {
   configureStore();
+  expect(testPackSelectors).toEqual(requestSimpleErrorSelectors);
   expect(testPackSelectors.isLoading(state())).toEqual(false);
   expect(testPackSelectors.result(state())).toEqual(null);
   expect(testPackSelectors.value(state())).toEqual(null);
@@ -123,6 +125,7 @@ test('check default gens merge', () => {
 });
 
 test('check error and reset gens merge', () => {
+  expect(resetGenSelectors).toEqual(multiGenSelectors);
   expect(resetGenSelectors.isLoading(state())).toEqual(false);
   expect(resetGenSelectors.result(state())).toEqual(null);
   expect(resetGenSelectors.error(state())).toEqual(null);
@@ -171,6 +174,7 @@ test('check error and reset gens merge', () => {
 });
 
 test('check merge by key payload', () => {
+  expect(mergeActions).toEqual(withGenPayloadCustomActionsActions);
   expect(mergeSelectors.field(state())).toEqual({});
   expect(mergeSelectors.field2(state())).toEqual({});
 

@@ -1,35 +1,12 @@
 import { ActionCreatorWithPreparedPayload, AnyAction, configureStore } from '@reduxjs/toolkit';
 import { Reducer } from 'redux';
 import { OutputSelector } from 'reselect';
-export declare type CreateReduxPackParams<S, PayloadMain, PayloadMap extends CreateReduxPackPayloadMap<S> = any> = {
-    name: string;
-    defaultInitial?: any;
-    mergeByKey?: any;
-    reducerName: string;
-    formatPayload?: (data: PayloadMain) => any;
-    formatMergePayload?: (data: PayloadMain) => any;
-    payloadMap?: PayloadMap;
-} & ({
-    template?: 'simple';
-} | {
-    template?: 'request';
-});
 export declare type Action<T> = {
     type: string;
     payload: T;
 } & Record<string, any>;
-export declare type CreateReduxPackGeneratorBlock<RT = any> = <S = Record<string, any>, PayloadMain = any, RTD = Record<string, any>, PayloadMap extends CRPackPayloadMap<S> = any, Info extends CreateReduxPackParams<S, PayloadMain, PayloadMap> = CreateReduxPackParams<S, PayloadMain, PayloadMap>>(info: CreateReduxPackParams<S, PayloadMain, PayloadMap> & Info) => RT | RTD;
-export declare type CreateReduxPackGenerator = {
-    actions: CreateReduxPackGeneratorBlock;
-    stateNames: CreateReduxPackGeneratorBlock;
-    actionNames: CreateReduxPackGeneratorBlock;
-    initialState: CreateReduxPackGeneratorBlock;
-    reducer: CreateReduxPackGeneratorBlock;
-    selectors: CreateReduxPackGeneratorBlock;
-};
 export declare type CRPackReducer = Record<string, (state: any, action: Action<Record<string, any>>) => any>;
 export declare type CRPackInitialState<Config> = Config extends Params<infer S> ? S & Record<string, any> : never;
-export declare type CRPackPayloadMap<S> = Record<string | keyof S, any>;
 declare type CRPackStateName<S> = S extends Record<string, any> ? {
     [P in keyof S]: S[P] extends Record<string, any> ? (P extends string ? `[${P}]: CRPack-{id}` : never) & CRPackStateName<S[P]> : P extends string ? `[${P}]: CRPack-{id}` : never;
 } : never;
@@ -125,9 +102,9 @@ export declare type CRPackArbitraryGen = {
     [P in Exclude<string, 'name'>]: (...args: any[]) => any;
 };
 declare type CRPackWithGenIteration<I> = I extends 1 ? 2 : I extends 2 ? 3 : I extends 3 ? 4 : I extends 4 ? 5 : I extends 5 ? 6 : I extends 6 ? 7 : I extends 7 ? 8 : I extends 8 ? 9 : 10;
-declare type CRPackWithGenFromGenResult<Config extends Params, PResult extends Record<any, any>, Gen extends CRPackWithGenFromGen<Config, PResult>, OGen extends CRPackArbitraryGen, I extends number = 1> = {
+declare type CRPackWithGenFromGenResult<Config extends Params, PResult extends Record<any, any>, Gen extends CRPackWithGenFromGen<Config, PResult>, OGen extends CRPackArbitraryGen, I extends number = 1> = CRPackGenNamed<Config, {
     [P in keyof CombineFn<OGen, Gen>]: ReturnType<CombineFn<OGen, Gen>[P]>;
-} & {
+}> & {
     name: string;
 } & (I extends 10 ? {} : {
     withGenerator: <NewGen extends CRPackWithGenFromGen<Config, {
@@ -139,15 +116,15 @@ declare type CRPackWithGenFromGenResult<Config extends Params, PResult extends R
 export declare type CRPackGenerator<Config extends Params> = {
     [P in Exclude<string, 'name'>]: (info: Config) => any;
 };
-declare type CRPackGeneratorResult<Config extends Params, Gen extends CRPackGenerator<Config>> = {
+declare type CRPackGeneratorResult<Config extends Params, Gen extends CRPackGenerator<Config>> = CRPackGenNamed<Config, {
     [P in keyof Gen]: ReturnType<Gen[P]>;
-};
+}>;
 export declare type CRPackWithGen<Config extends Params, Gen extends CRPackGenerator<Config>> = {
     [P in Exclude<string, 'name'>]: (info: Config, pack: CRPackGeneratorResult<Config, Gen>) => any;
 };
-declare type CRPackWithGenResult<Config extends Params, OGen extends CRPackGenerator<Config>, Gen extends CombineFn<OGen, CRPackWithGen<Config, OGen>>> = {
+declare type CRPackWithGenResult<Config extends Params, OGen extends CRPackGenerator<Config>, Gen extends CombineFn<OGen, CRPackWithGen<Config, OGen>>> = CRPackGenNamed<Config, {
     [P in keyof Gen]: ReturnType<Gen[P]>;
-} & {
+}> & {
     name: string;
     withGenerator: <NewGen extends CRPackWithGenFromGen<Config, {
         [P in keyof Gen]: ReturnType<Gen[P]>;
@@ -163,6 +140,9 @@ export declare type CRPackRequestGen<Config extends Params> = Expand<{
     reducer: (info: Config) => CRPackReducer;
     selectors: (info: Config) => CRPackRequestSelectors<Config>;
 }>;
+export declare type CRPackGenNamed<Config extends Params, Gen> = Expand<{
+    [Key in keyof Gen as Key extends string ? `${Uncapitalize<Config['name']>}${Capitalize<Key>}` : Key]: Gen[Key];
+}> & Gen;
 export declare type CRPackSimpleGen<Config extends Params> = Expand<{
     stateNames: (info: Config) => CRPackSimpleStateNames<Config>;
     actionNames: (info: Config) => CRPackSimpleActionNames<Config extends Params<unknown, infer Actions> ? Actions : never>;
@@ -272,9 +252,10 @@ export declare type Params<S = any, Actions extends PropertyKey = any, Template 
     mergeByKey?: MergeByKey<Default>;
     formatMergePayload?: (payload: DefaultPayload) => CRPackMergable<Default>;
 });
-export declare type CRPackFN = <Config extends Params<S, Actions, Template>, S = any, Actions extends PropertyKey = any, Template extends CRPackTemplates = CRPackDefaultTemplate>(info: {
+export declare type CRPackFN = <Config extends Params<S, Actions, Template>, S = any, PackName extends string = string, Actions extends PropertyKey = any, Template extends CRPackTemplates = CRPackDefaultTemplate>(info: {
     payloadMap?: CreateReduxPackPayloadMap<S, Actions, Template>;
 } & Config & {
+    name: PackName;
     actions?: Actions[];
     template?: Template;
 }) => CRPackReturnType<Config, Template extends 'simple' ? CRPackSimpleGen<Config> : CRPackRequestGen<Config>>;

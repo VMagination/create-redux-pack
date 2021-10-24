@@ -367,9 +367,12 @@ type CRPackWithGenFromGenResult<
   Gen extends CRPackWithGenFromGen<Config, PResult>,
   OGen extends CRPackArbitraryGen,
   I extends number = 1
-> = {
-  [P in keyof CombineFn<OGen, Gen>]: ReturnType<CombineFn<OGen, Gen>[P]>;
-} & { name: string } & (I extends 10
+> = CRPackGenNamed<
+  Config,
+  {
+    [P in keyof CombineFn<OGen, Gen>]: ReturnType<CombineFn<OGen, Gen>[P]>;
+  }
+> & { name: string } & (I extends 10
     ? {}
     : {
         withGenerator: <
@@ -396,9 +399,12 @@ export type CRPackGenerator<Config extends Params> = {
   [P in Exclude<string, 'name'>]: (info: Config) => any;
 };
 
-type CRPackGeneratorResult<Config extends Params, Gen extends CRPackGenerator<Config>> = {
-  [P in keyof Gen]: ReturnType<Gen[P]>;
-};
+type CRPackGeneratorResult<Config extends Params, Gen extends CRPackGenerator<Config>> = CRPackGenNamed<
+  Config,
+  {
+    [P in keyof Gen]: ReturnType<Gen[P]>;
+  }
+>;
 
 export type CRPackWithGen<Config extends Params, Gen extends CRPackGenerator<Config>> = {
   [P in Exclude<string, 'name'>]: (info: Config, pack: CRPackGeneratorResult<Config, Gen>) => any;
@@ -408,9 +414,12 @@ type CRPackWithGenResult<
   Config extends Params,
   OGen extends CRPackGenerator<Config>,
   Gen extends CombineFn<OGen, CRPackWithGen<Config, OGen>>
-> = {
-  [P in keyof Gen]: ReturnType<Gen[P]>;
-} & {
+> = CRPackGenNamed<
+  Config,
+  {
+    [P in keyof Gen]: ReturnType<Gen[P]>;
+  }
+> & {
   name: string;
   withGenerator: <
     NewGen extends CRPackWithGenFromGen<
@@ -443,6 +452,13 @@ export type CRPackRequestGen<Config extends Params> = Expand<{
   reducer: (info: Config) => CRPackReducer;
   selectors: (info: Config) => CRPackRequestSelectors<Config>;
 }>;
+
+export type CRPackGenNamed<Config extends Params, Gen> = Expand<
+  {
+    [Key in keyof Gen as Key extends string ? `${Uncapitalize<Config['name']>}${Capitalize<Key>}` : Key]: Gen[Key];
+  }
+> &
+  Gen;
 
 export type CRPackSimpleGen<Config extends Params> = Expand<{
   stateNames: (info: Config) => CRPackSimpleStateNames<Config>;
@@ -643,10 +659,12 @@ export type Params<
 export type CRPackFN = <
   Config extends Params<S, Actions, Template>,
   S = any,
+  PackName extends string = string,
   Actions extends PropertyKey = any,
   Template extends CRPackTemplates = CRPackDefaultTemplate
 >(
   info: { payloadMap?: CreateReduxPackPayloadMap<S, Actions, Template> } & Config & {
+      name: PackName;
       actions?: Actions[];
       template?: Template;
     },

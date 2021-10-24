@@ -50,11 +50,14 @@ const reducerName = 'TestReducer';
 const {
   initialState: testPackInitial,
   name: testPackName,
-  selectors: testPackSelectors,
-  stateNames: testPackStateNames,
-  actions: testPackActions,
-  actionNames: testPackActionNames,
-  reducer: testPackReducer,
+  testPackSelectors,
+  testPackStateNames,
+  testPackActions,
+  // @ts-ignore
+  notRealNameActions,
+  actions: testPackActions2,
+  testPackActionNames,
+  testPackReducer,
 } = createReduxPack({
   name: packName,
   reducerName: reducerName,
@@ -259,6 +262,8 @@ test('check package stateNames', () => {
 });
 
 test('check package actions', () => {
+  expect(notRealNameActions).toEqual(undefined);
+  expect(testPackActions2).toEqual(testPackActions);
   expect(testPackActions.run()).toEqual({ type: createReduxPack.getRunName(uniqueName), payload: undefined });
   expect(testPackActions.extraAction()).toEqual({
     type: createReduxPack.getActionName(uniqueName, 'extraAction'),

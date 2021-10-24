@@ -22,6 +22,7 @@ import {
   getKeyName,
   getNameWithInstance,
   getActionName,
+  getLazyPack,
 } from './utils';
 import { CRPackFN, CRPackTemplates, Params, CreateReduxPackPayloadMap } from './types';
 import { requestDefaultActions, requestGen, simpleDefaultActions, simpleGen } from './generators';
@@ -30,7 +31,6 @@ import { resetActionGen } from './generators/reset';
 
 const loggerMatcher: any = () => true;
 
-const cached = Symbol('[CRPack]: cached');
 const globalReducerSkip = Symbol('[CRPack]: global reducer skip');
 
 const createReduxPack: CRPackFN & CreateReduxPackType = Object.assign(
@@ -49,25 +49,7 @@ const createReduxPack: CRPackFN & CreateReduxPackType = Object.assign(
     const { reducerName, template = 'request' } = info;
     const templateGen = createReduxPack._generators[template] || createReduxPack._generators.request;
 
-    const lazyPack = new Proxy(
-      { ...templateGen, [cached]: {} },
-      {
-        get: (t, p, s) => {
-          const val = Reflect.get(t, p, s);
-          const saved = Reflect.get(t, cached, s);
-          if (p === 'name') return info.name;
-          if (templateGen.hasOwnProperty(p)) {
-            if (p in saved) {
-              return saved[p];
-            }
-            const result = val(info);
-            Reflect.set(t[cached], p, result);
-            return result;
-          }
-          return val;
-        },
-      },
-    ) as any;
+    const lazyPack = getLazyPack(templateGen, info);
 
     const generatedReducerPart = lazyPack.reducer as any;
     const generatedInitialStatePart = lazyPack.initialState;
@@ -146,25 +128,7 @@ const createReduxPack: CRPackFN & CreateReduxPackType = Object.assign(
       const templateGen = prevGen || createReduxPack._generators[template] || createReduxPack._generators.request;
       const mergedGen = mergeGenerators(templateGen, generator);
 
-      const lazyPack = new Proxy(
-        { ...mergedGen, [cached]: {} },
-        {
-          get: (t, p, s) => {
-            const val = Reflect.get(t, p, s);
-            const saved = Reflect.get(t, cached, s);
-            if (p === 'name') return info.name;
-            if (mergedGen.hasOwnProperty(p)) {
-              if (p in saved) {
-                return saved[p];
-              }
-              const result = val(info, originalResult);
-              Reflect.set(t[cached], p, result);
-              return result;
-            }
-            return val;
-          },
-        },
-      );
+      const lazyPack = getLazyPack(mergedGen, info, originalResult);
 
       createReduxPack.injectReducerInto(reducerName, lazyPack.reducer, lazyPack.initialState);
       return Object.assign(lazyPack, {
