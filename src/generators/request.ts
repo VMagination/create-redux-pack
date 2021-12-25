@@ -3,19 +3,18 @@ import {
   addMappedPayloadToState,
   createAction,
   createReducerCase,
+  DefaultStateNames,
   getActionName,
   getFailName,
   getInitial,
-  getLoadingName,
   getNameWithInstance,
-  getResultName,
   getRunName,
   getSelectors,
   getStateNames,
   getSuccessName,
 } from '../utils';
 import { OutputSelector } from 'reselect';
-import { mergePayloadByKey } from '../utils/mergePayloadByKey';
+import { mergableRemoveSymbol, mergePayloadByKey } from '../utils/mergePayloadByKey';
 import { selectorWithInstances } from '../utils/selectorWithInstances';
 
 export const requestDefaultActions = ['run', 'success', 'fail'];
@@ -52,8 +51,8 @@ export const requestGen: CRPackArbitraryGen = {
   selectors: <Config extends Params>({ name, reducerName, payloadMap = {}, defaultInitial }: Config) => {
     const getReducerState = (state: any) => state[reducerName];
     return {
-      isLoading: selectorWithInstances(getReducerState, getLoadingName(name), false),
-      result: selectorWithInstances(getReducerState, getResultName(name), defaultInitial),
+      isLoading: selectorWithInstances(getReducerState, DefaultStateNames.isLoading(name), false),
+      result: selectorWithInstances(getReducerState, DefaultStateNames.result(name), defaultInitial),
       ...(getSelectors(payloadMap, name, getReducerState) as {
         [P in keyof (Config extends Params<infer S> ? S : never)]: OutputSelector<
           any,
@@ -64,13 +63,13 @@ export const requestGen: CRPackArbitraryGen = {
     };
   },
   initialState: <Config extends Params>({ name, defaultInitial = null, payloadMap = {} }: Config) => ({
-    [getLoadingName(name)]: false,
-    [getResultName(name)]: defaultInitial,
+    [DefaultStateNames.isLoading(name)]: false,
+    [DefaultStateNames.result(name)]: defaultInitial,
     ...getInitial(payloadMap, name),
   }),
   stateNames: <Config extends Params>({ name, payloadMap = {} as any }: Config) => ({
-    isLoading: getLoadingName(name),
-    result: getResultName(name),
+    isLoading: DefaultStateNames.isLoading(name),
+    result: DefaultStateNames.result(name),
     ...(getStateNames(payloadMap, name) as {
       [P in keyof (Config extends Params<infer S> ? S : never)]: string;
     }),
@@ -82,6 +81,7 @@ export const requestGen: CRPackArbitraryGen = {
     formatMergePayload,
     mergeByKey,
     modifyValue,
+    actionToValue,
     defaultFallback,
     defaultInitial,
     defaultInstanced,
@@ -114,7 +114,7 @@ export const requestGen: CRPackArbitraryGen = {
       ),
     [getRunName(name)]: createReducerCase((state, { payload, meta }) => {
       const newState = {
-        [getNameWithInstance(getLoadingName(name), meta?.instance)]: true,
+        [getNameWithInstance(DefaultStateNames.isLoading(name), meta?.instance)]: true,
       };
       addMappedPayloadToState({
         obj: newState,
@@ -132,12 +132,13 @@ export const requestGen: CRPackArbitraryGen = {
     }),
     [getSuccessName(name)]: createReducerCase((state, { payload, meta }) => {
       const format = formatPayload || formatMergePayload;
-      const finalPayload = (format ? format(payload) : payload) ?? defaultFallback;
-      const key = getNameWithInstance(getResultName(name), defaultInstanced ? meta?.instance : undefined);
+      const finalPayload = (format ? format(payload, mergableRemoveSymbol) : payload) ?? defaultFallback;
+      const key = getNameWithInstance(DefaultStateNames.result(name), defaultInstanced ? meta?.instance : undefined);
+      const modify = actionToValue || modifyValue;
       const newState = {
-        [getNameWithInstance(getLoadingName(name), meta?.instance)]: false,
-        [key]: modifyValue
-          ? modifyValue(finalPayload, state[key] ?? defaultInitial)
+        [getNameWithInstance(DefaultStateNames.isLoading(name), meta?.instance)]: false,
+        [key]: modify
+          ? modify(finalPayload, state[key] ?? defaultInitial)
           : mergePayloadByKey(state[key] ?? defaultInitial, finalPayload, mergeByKey),
       };
       addMappedPayloadToState({
@@ -157,7 +158,7 @@ export const requestGen: CRPackArbitraryGen = {
     }),
     [getFailName(name)]: createReducerCase((state, { payload, meta }) => {
       const newState = {
-        [getNameWithInstance(getLoadingName(name), meta?.instance)]: false,
+        [getNameWithInstance(DefaultStateNames.isLoading(name), meta?.instance)]: false,
       };
       addMappedPayloadToState({
         obj: newState,

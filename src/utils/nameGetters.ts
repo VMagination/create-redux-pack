@@ -9,7 +9,16 @@ export const getLoadingName = (name: string): string => `isLoading ${name}`;
 export const getResultName = (name: string): string => `result ${name}`;
 export const getValueName = (name: string): string => `value ${name}`;
 export const getErrorName = (name: string): string => `error ${name}`;
-export const getKeyName = (name: string, key: string): string => (hasCRPackName(key) ? key : `${key} of ${name}`);
+
+export const DefaultStateNames = {
+  result: getResultName,
+  value: getValueName,
+  isLoading: getLoadingName,
+  error: getErrorName,
+} as Record<string, (name: string) => string>;
+
+export const getKeyName = (name: string, key: string): string =>
+  DefaultStateNames[key]?.(name) || (hasCRPackName(key) ? key : `${key} of ${name}`);
 export const getActionName = (name: string, actionName: string): string => `${actionName} ${name}`;
 export const getNameWithInstance = (name: string, instance?: string): string =>
   instance ? `${name} [Instance]: ${instance}` : name;

@@ -1,8 +1,11 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import createReduxPack, { configureStore, resetAction, requestErrorGen, resetActionGen } from '../index';
+import { configureStore as configureToolkitStore } from '@reduxjs/toolkit';
+import { combineReducers } from 'redux';
+import createReduxPack, { connectStore, resetAction, requestErrorGen, resetActionGen } from '../index';
 import { simpleGen } from './simple';
+import { mergableRemoveSymbol } from '../utils/mergePayloadByKey';
 
-const state = () => createReduxPack._store?.getState();
+const state = () => createReduxPack._store?.getState() as any;
 
 const packName = 'RequestSimpleError';
 const reducerName = 'TestReducer';
@@ -28,12 +31,19 @@ const { selectors: testPackSelectors, actions: testPackActions, requestSimpleErr
   .withGenerator(requestErrorGen)
   .withGenerator(simpleGen);
 
+const { simpleNameActions } = createReduxPack({
+  name: 'simpleName',
+  template: 'simple',
+  reducerName: 'reducer',
+});
+
 const { selectors: resetGenSelectors, multiGenSelectors, actions: resetGenActions, errorSelector } = createReduxPack({
   name: 'multiGen',
   reducerName: reducerName,
   defaultInitial: null as number | null,
   formatPayload: (p: { a: number }) => p.a,
   modifyValue: (val, prevVal) => val + prevVal,
+  // actionToValue: (p: { a: number }, prevVal) => p.a + prevVal,
 })
   .withGenerator(requestErrorGen)
   .withGenerator(resetActionGen)
@@ -43,6 +53,34 @@ const { selectors: resetGenSelectors, multiGenSelectors, actions: resetGenAction
     allActions: (_info, prevPack) => prevPack.actions,
     allSelectors: (_info, prevPack) => prevPack.selectors,
   });
+
+const { checkSelectors, checkActions, checkStateNames } = createReduxPack({
+  name: 'check',
+  reducerName: reducerName,
+  defaultInitial: null,
+  actions: ['secondary'],
+  payloadMap: {
+    value: {
+      initial: [] as number[],
+    },
+    value2: {
+      actions: ['secondary'],
+      initial: {} as Record<string, string>,
+    },
+  },
+});
+
+const { checkMActions } = createReduxPack({
+  name: 'checkM',
+  reducerName: reducerName,
+  defaultInitial: [] as number[],
+  payloadMap: {
+    [checkStateNames.value]: {
+      formatPayload: (val: number[]) => val,
+      initial: [] as number[],
+    },
+  },
+});
 
 const { selectors: mergeSelectors, actions: mergeActions, withGenPayloadCustomActionsActions } = createReduxPack({
   name: 'WithGenPayloadCustomActions',
@@ -68,8 +106,45 @@ const { selectors: mergeSelectors, actions: mergeActions, withGenPayloadCustomAc
   },
 }).withGenerator(resetActionGen);
 
-test('check default gens merge', () => {
-  configureStore();
+const initialState = {
+  myField: null,
+  myField1: null,
+};
+
+const reducer = (state: any = initialState, action: any) => {
+  // console.log({ state, action });
+  if (action.type === 'customAction') {
+    return { ...state, myField: action.data };
+  }
+  if (action.type === 'customAction1') {
+    return { ...state, myField1: action.data };
+  }
+  // console.log({ state });
+  return state;
+};
+
+test('check default gens merge and store connection', () => {
+  const store = configureToolkitStore({
+    // @ts-ignore
+    reducer: combineReducers({ default: reducer, badReducer: false }),
+  });
+  console.warn = jest.fn();
+  // @ts-ignore
+  connectStore(store);
+  expect(console.warn).toBeCalled();
+  // @ts-ignore
+  connectStore(store, { default: reducer, badReducer: false });
+  expect(createReduxPack._store).toEqual(store);
+  expect(createReduxPack._initialState).toMatchObject({
+    default: initialState,
+  });
+  expect(state().default.myField).toEqual(null);
+  expect(state().default.myField1).toEqual(null);
+
+  createReduxPack._store?.dispatch({ type: 'customAction1', data: 'asd' } as any);
+  expect(state().default.myField).toEqual(null);
+  expect(state().default.myField1).toEqual('asd');
+
   expect(testPackSelectors).toEqual(requestSimpleErrorSelectors);
   expect(testPackSelectors.isLoading(state())).toEqual(false);
   expect(testPackSelectors.result(state())).toEqual(null);
@@ -77,7 +152,8 @@ test('check default gens merge', () => {
   expect(testPackSelectors.error(state())).toEqual(null);
 
   createReduxPack._store?.dispatch(testPackActions.set('asd1'));
-
+  expect(state().default.myField).toEqual(null);
+  expect(state().default.myField1).toEqual('asd');
   expect(testPackSelectors.isLoading(state())).toEqual(false);
   expect(testPackSelectors.result(state())).toEqual(null);
   expect(testPackSelectors.value(state())).toEqual('asd1');
@@ -114,6 +190,13 @@ test('check default gens merge', () => {
 
   expect(testPackSelectors.error(state())).toEqual(null);
 
+  expect(state().default.myField).toEqual(null);
+  expect(state().default.myField1).toEqual('asd');
+
+  createReduxPack._store?.dispatch({ type: 'customAction', data: 123 } as any);
+  expect(state().default.myField).toEqual(123);
+  expect(state().default.myField1).toEqual('asd');
+
   createReduxPack._store?.dispatch(resetAction());
 
   expect(testPackSelectors.isLoading(state())).toEqual(false);
@@ -121,7 +204,32 @@ test('check default gens merge', () => {
   expect(testPackSelectors.value(state())).toEqual(null);
   expect(testPackSelectors.error(state())).toEqual(null);
 
+  expect(state().default.myField).toEqual(null);
+  expect(state().default.myField1).toEqual(null);
+
   expect(testPackActions.extraAction).toBeDefined();
+});
+
+test('Simple gen without actions', () => {
+  expect(Object.keys(simpleNameActions)).toEqual(['set', 'reset']);
+});
+
+test('check forced value reset', () => {
+  expect(checkSelectors.value(state())).toEqual([]);
+  createReduxPack._store?.dispatch(checkActions.success({ value: [1, 2, 3] }));
+  expect(checkSelectors.value(state())).toEqual([1, 2, 3]);
+  createReduxPack._store?.dispatch(checkActions.success({ value: [] }));
+  expect(checkSelectors.value(state())).toEqual([]);
+  createReduxPack._store?.dispatch(checkMActions.success([2]));
+  expect(checkSelectors.value(state())).toEqual([2]);
+  createReduxPack._store?.dispatch(checkMActions.success([]));
+  expect(checkSelectors.value(state())).toEqual([]);
+
+  expect(checkSelectors.value2(state())).toEqual({});
+  createReduxPack._store?.dispatch(checkActions.secondary({ value2: { a: '1', b: '2' } }));
+  expect(checkSelectors.value2(state())).toEqual({ a: '1', b: '2' });
+  createReduxPack._store?.dispatch(checkActions.secondary({ value2: {} }));
+  expect(checkSelectors.value2(state())).toEqual({});
 });
 
 test('check error and reset gens merge', () => {
@@ -181,7 +289,32 @@ test('check merge by key payload', () => {
   createReduxPack._store?.dispatch(mergeActions.sad.instances.wasd({ field: [{ id: 'asd', value: '1' }] }));
   expect(mergeSelectors.field(state())).toEqual({ asd: { id: 'asd', value: '1' } });
   createReduxPack._store?.dispatch(mergeActions.sad.instances.sad({ field: { id: 'sad', value: '2' } }));
-  expect(mergeSelectors.field(state())).toEqual({ asd: { id: 'asd', value: '1' }, sad: { id: 'sad', value: '2' } });
+  createReduxPack._store?.dispatch(
+    mergeActions.sad.instances.sad({
+      field: {
+        wasd: {
+          id: 'wasd',
+          value: '3',
+        },
+      },
+    }),
+  );
+  expect(mergeSelectors.field(state())).toEqual({
+    asd: { id: 'asd', value: '1' },
+    sad: { id: 'sad', value: '2' },
+    wasd: { id: 'wasd', value: '3' },
+  });
+  createReduxPack._store?.dispatch(
+    mergeActions.sad.instances.sad({
+      field: {
+        wasd: mergableRemoveSymbol,
+      },
+    }),
+  );
+  expect(mergeSelectors.field(state())).toEqual({
+    asd: { id: 'asd', value: '1' },
+    sad: { id: 'sad', value: '2' },
+  });
 
   createReduxPack._store?.dispatch(mergeActions.asd.instances.asd({ id: 'asd', value: '1' }));
   expect(mergeSelectors.field2(state())).toEqual({});

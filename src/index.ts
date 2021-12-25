@@ -1,6 +1,6 @@
 import { AnyAction, configureStore as configureStoreToolkit, createReducer } from '@reduxjs/toolkit';
 import { Action, CreateReduxPackActionMap, CRPackReducer, CreateReduxPackType, CRPackArbitraryGen } from './types';
-import { combineReducers, Reducer } from 'redux';
+import { combineReducers, Reducer, Store } from 'redux';
 import {
   mergeObjects,
   createAction,
@@ -23,11 +23,13 @@ import {
   getNameWithInstance,
   getActionName,
   getLazyPack,
+  generateId,
 } from './utils';
 import { CRPackFN, CRPackTemplates, Params, CreateReduxPackPayloadMap } from './types';
 import { requestDefaultActions, requestGen, simpleDefaultActions, simpleGen } from './generators';
 import { requestErrorGen } from './generators/error';
 import { resetActionGen } from './generators/reset';
+import { mergableRemoveSymbol } from './utils/mergePayloadByKey';
 
 const loggerMatcher: any = () => true;
 
@@ -86,7 +88,10 @@ const createReduxPack: CRPackFN & CreateReduxPackType = Object.assign(
           createReduxPack._initialState[key] = initial;
           return {
             ...accum,
-            [key]: createReducer(initial, combinedObjects[key]),
+            [key]:
+              typeof combinedObjects[key] === 'object'
+                ? createReducer(initial, combinedObjects[key])
+                : (combinedObjects[key] as any),
           };
         },
         (createReduxPack.isLoggerOn
@@ -103,6 +108,7 @@ const createReduxPack: CRPackFN & CreateReduxPackType = Object.assign(
             }
           : {}) as Record<string, Reducer>,
       );
+      const reducer = Object.keys(combinedReducers).length ? combineReducers(combinedReducers) : (state: any) => state;
       return (state: any, action: AnyAction) => {
         if (action.type in (createReduxPack as any)._globalReducers) {
           const result = (createReduxPack as any)._globalReducers[action.type](state, action, globalReducerSkip);
@@ -111,10 +117,7 @@ const createReduxPack: CRPackFN & CreateReduxPackType = Object.assign(
 
         if (action.type === resetAction.type) return createReduxPack._initialState;
 
-        return (Object.keys(combinedReducers).length ? combineReducers(combinedReducers) : (state: any) => state)(
-          state,
-          action,
-        );
+        return reducer(state, action);
       };
     },
     _globalReducers: {},
@@ -229,6 +232,42 @@ const configureStore: (
   return store;
 };
 
+const connectStore = (store: Store, reducers: Parameters<typeof combineReducers>[0], initialState?: any) => {
+  createReduxPack._store = store;
+  if (!reducers) {
+    createReduxPack.updateReducer();
+    return console.warn(
+      "CRPack applyStore didn't receive a reducer, if there are none use CRPack's configureStore utility instead",
+    );
+  }
+  if (typeof reducers === 'object') {
+    const reducerEntries = Object.entries(reducers);
+    createReduxPack._reducers = mergeObjects(
+      createReduxPack._reducers,
+      reducerEntries.reduce(
+        (accum, [key, item]) => (typeof item === 'function' ? { ...accum, [key]: item } : accum),
+        {},
+      ),
+    );
+    createReduxPack._initialState = mergeObjects(
+      createReduxPack._initialState,
+      initialState ||
+        reducerEntries.reduce(
+          (accum, [key, reducer]) =>
+            typeof reducer === 'function'
+              ? {
+                  ...accum,
+                  [key]: reducer(undefined, { type: `[CRPack]: init ${generateId(6)}` }),
+                }
+              : accum,
+          {},
+        ) ||
+        {},
+    );
+    createReduxPack.updateReducer();
+  }
+};
+
 const createReducerOn = <S>(
   reducerName: string,
   initialState: S,
@@ -238,6 +277,7 @@ const createReducerOn = <S>(
 };
 
 export {
+  connectStore,
   createSelector,
   createAction,
   configureStore,
@@ -250,6 +290,7 @@ export {
   requestErrorGen,
   resetActionGen,
   makeKeysReadable,
+  mergableRemoveSymbol,
 };
 
 export default createReduxPack;

@@ -1,9 +1,9 @@
 import { CreateReduxPackPayloadMap } from '../types';
 import { createSelector as createReSelector } from 'reselect';
 import { getReadableKey } from './getReadableKey';
-import { getKeyName, getNameWithInstance } from './nameGetters';
+import { DefaultStateNames, getKeyName, getNameWithInstance } from './nameGetters';
 import { makeKeysReadable } from './makeKeysReadable';
-import { mergePayloadByKey } from './mergePayloadByKey';
+import { mergableRemoveSymbol, mergePayloadByKey } from './mergePayloadByKey';
 import { selectorWithInstances } from './selectorWithInstances';
 
 const shouldRecursionEnd = (payloadMapByKey: any) => 'initial' in payloadMapByKey;
@@ -11,15 +11,16 @@ const shouldRecursionEnd = (payloadMapByKey: any) => 'initial' in payloadMapByKe
 const empty = Symbol('CRPack value: empty');
 
 const isTreeEmpty = (obj: any): boolean => {
-  const c = Array.isArray(obj)
-    ? false
-    : Object.keys(obj).every((key) => {
-        if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
-          return isTreeEmpty(obj[key]);
-        }
-        return obj[key] === empty;
-      });
-  return c;
+  const keys = Object.keys(obj);
+  const result =
+    Boolean(keys.length) &&
+    keys.every((key) => {
+      if (obj[key] && typeof obj[key] === 'object') {
+        return isTreeEmpty(obj[key]);
+      }
+      return obj[key] === empty;
+    });
+  return result;
 };
 
 const setEmptyTrees = (obj: any) => {
@@ -73,19 +74,45 @@ export const addStateParam = ({
   const payloadMapByKey = payloadMap[key];
   const instanced = payloadMapByKey?.instanced;
   const isInstanced = Array.isArray(instanced) ? instanced.includes(action) : payloadMapByKey?.instanced;
-  const stateKey = getNameWithInstance(getKeyName(name, `${prefix}${key}`), isInstanced ? instance : undefined);
-  if ((isMainAction && !payloadMapByKey?.actions) || payloadMapByKey?.actions?.includes(action)) {
+  let stateKey = getNameWithInstance(getKeyName(name, `${prefix}${key}`), isInstanced ? instance : undefined);
+  if (
+    payloadMapByKey?.actionToValue?.[action] ||
+    (isMainAction && !payloadMapByKey?.actions) ||
+    payloadMapByKey?.actions?.includes(action)
+  ) {
     const format = payloadMapByKey?.formatPayload || payloadMapByKey?.formatMergePayload;
-    const payloadValue = (format ? format(payload) : payloadField) ?? payloadMapByKey?.fallback;
-    const modification = payloadMapByKey?.modifyValue;
-    obj[stateKey] = modification
-      ? modification(payloadValue, state[stateKey] ?? payloadMapByKey?.initial, {
-          code: action,
-          instance,
-          getStateWithSelector: (selector: any) => selector({ [reducerName]: mainState }),
-        })
+    const payloadValue =
+      (format ? format(payload, action, mergableRemoveSymbol) : payloadField) ?? payloadMapByKey?.fallback;
+    const modification =
+      ('actionToValue' in payloadMapByKey && typeof payloadMapByKey?.actionToValue === 'function'
+        ? payloadMapByKey?.actionToValue
+        : payloadMapByKey?.actionToValue?.[action]) || payloadMapByKey?.modifyValue;
+    const newValue = modification
+      ? modification(
+          payloadMapByKey?.actionToValue ? payload ?? payloadMapByKey?.fallback : payloadValue,
+          state[stateKey] ?? payloadMapByKey?.initial,
+          {
+            code: action,
+            instance,
+            forceInstance: (instanceName?: string) => {
+              stateKey = getNameWithInstance(getKeyName(name, `${prefix}${key}`), instanceName);
+            },
+            updateInstances: (instances: Record<string, (val: any) => any>) => {
+              if (!instances) return;
+              Object.entries(instances).forEach(([instanceName, item]) => {
+                const instanceKey = getNameWithInstance(getKeyName(name, `${prefix}${key}`), instanceName);
+                obj[instanceKey] =
+                  typeof item === 'function' ? item(state[instanceKey] ?? payloadMapByKey?.initial) : item;
+              });
+            },
+            getInstancedValue: (instanceName?: string) =>
+              state[getNameWithInstance(getKeyName(name, `${prefix}${key}`), instanceName)] ?? payloadMapByKey?.initial,
+            getStateWithSelector: (selector: any) => selector({ [reducerName]: mainState }),
+          },
+        )
       : mergePayloadByKey(state[stateKey] ?? payloadMapByKey?.initial, payloadValue, payloadMapByKey?.mergeByKey);
-  } else {
+    obj[stateKey] = newValue;
+  } else if (!DefaultStateNames[`${prefix}${key}`]) {
     obj[stateKey] = empty;
   }
 };
@@ -119,7 +146,7 @@ export const addMappedPayloadToState = <S = Record<string, any>, PayloadMain = a
   instance?: string;
   isTop?: boolean;
 }): void => {
-  const keys = Object.keys(payloadMap).filter((key) => key !== 'key');
+  const keys = Object.keys(payloadMap);
   keys.forEach((key) => {
     const payloadMapByKey: any = payloadMap[key as keyof S];
     if (shouldRecursionEnd(payloadMapByKey)) {
@@ -188,7 +215,7 @@ const addMappedInitialToState = <S = Record<string, any>>(
   action?: string,
   prefix = '',
 ) => {
-  const keys = Object.keys(payloadMap).filter((key) => key !== 'key');
+  const keys = Object.keys(payloadMap);
   keys.forEach((key) => {
     const payloadMapByKey: any = payloadMap[key as keyof S];
     const innerKey = getKeyName(name, `${prefix}${key}`);
@@ -222,7 +249,7 @@ const addMappedStateNames = <S = Record<string, any>>(
   name: string,
   prefix = '',
 ) => {
-  const keys = Object.keys(payloadMap).filter((key) => key !== 'key');
+  const keys = Object.keys(payloadMap);
   keys.forEach((key) => {
     const payloadMapByKey: any = payloadMap[key as keyof S];
     if (shouldRecursionEnd(payloadMapByKey)) {
@@ -289,7 +316,7 @@ const addMappedSelectors = <S = Record<string, any>>(
   prevSelector: (state: any) => any,
   prefix = '',
 ) => {
-  const keys = Object.keys(payloadMap).filter((key) => key !== 'key');
+  const keys = Object.keys(payloadMap);
   keys.forEach((key) => {
     const payloadMapByKey: any = payloadMap[key as keyof S];
     const innerKey = getKeyName(name, `${prefix}${key}`);

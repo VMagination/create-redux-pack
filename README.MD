@@ -141,9 +141,10 @@ To add logic of a pack it is required to inject its reducer and initialState int
       reducerName: 'Reducer',
       payloadMap: {
         [firstPackStateNames.item1]: {
-          formatPayload: ({passedItem1}) => passedItem1,
           initial: firstPackInitialState[firstPackStateNames.item1],
-          modifyValue: (passedItem, prevValue) => prevValue + passedItem,
+          // formatPayload: ({passedItem1}) => passedItem1,
+          // modifyValue: (passedItem, prevValue) => prevValue + passedItem,
+          actionToValue: ({ passedItem1: passedItem }, prevValue) => prevValue + passedItem
         },
       }
     });
@@ -214,6 +215,7 @@ In context of CRPack all Action Maps referred as Reducers. The difference of ter
 - [createReduxPack](#createreduxpackpackinfo--pack)
 - [pack.withGenerator](#packwithgeneratorgenerator--injectedpack)
 - [configureStore](#configurestoreoptions--store)
+- [connectStore](#connectstorestore-reducers--void)
 - [createAction](#createactionname-formatpayload--payload--action)
 - [createSelector](#createselectorreducerorsource-keyorformat--selector)
 - [createReducerCase](#createreducercasestate-action--partialstate)
@@ -230,20 +232,22 @@ In context of CRPack all Action Maps referred as Reducers. The difference of ter
 Creates pack of redux components with one of default generators
 
 #### packInfo
-| Field | Type | Required | Description | Default |
-| :---: | :-----: | :---: | :--- | :--- |
-| name | string | yes | package name, will be modified to be unique |
-| reducerName | string | yes | name of reducer, will be used to add or inject logic into specified reducer |
-| template | 'request' / 'simple' | no | template to use when creating a package | 'request' |
-| actions | string[] | no | extra actions to be generated, *have to be declared here before using with payloadMap* |
-| instanced | boolean | no | should default value be instanced on main action instances | false |
-| idGeneration | boolean | no | should generate random field id or keep it static | true / specified default CRPack value |
-| defaultInitial | Default | no | initial value of default result/value, should be defined if you are using result/value for state management | null |
-| formatPayload | (payload: any) => Default | no | function to format payload for default value field, *overrides formatMergePayload* |
-| modifyValue | (value, prevValue) => Default | no | allows modification of default value field, *overrides mergeByKey* |
-| mergeByKey | keyof Default | no | if not empty will make reducers try to merge default value with payload using key as identificator, initial and payload should be an array or an object otherwise no merge will commence |
-| formatMergePayload | (payload: any) => Default[keyof Default] | no | function to get value for current field from payload during merging |
-| payloadMap | PayloadMap | no | object of extra fields that will be appended to state with their own logic |
+|       Field        |                   Type                   | Required | Description                                                                                                                                                                                                            | Default |
+|:------------------:|:----------------------------------------:| :---: |:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| :--- |
+|        name        |                  string                  | yes | package name, will be modified to be unique                                                                                                                                                                            |
+|    reducerName     |                  string                  | yes | name of reducer, will be used to add or inject logic into specified reducer                                                                                                                                            |
+|      template      |           'request' / 'simple'           | no | template to use when creating a package                                                                                                                                                                                | 'request' |
+|      actions       |                 string[]                 | no | extra actions to be generated, *have to be declared here before using with payloadMap*                                                                                                                                 |
+|     instanced      |                 boolean                  | no | should default value be instanced on main action instances                                                                                                                                                             | false |
+|    idGeneration    |                 boolean                  | no | should generate random field id or keep it static                                                                                                                                                                      | true / specified default CRPack value |
+|   defaultInitial   |                 Default                  | no | initial value of default result/value, should be defined if you are using result/value for state management                                                                                                            | null |
+|     mergeByKey     |              keyof Default               | no | if not empty will make reducers try to merge default value with payload using key as identificator, initial and payload should be an array or an object otherwise no merge will commence                               |
+| formatMergePayload | (payload: any) => Default[keyof Default] | no | function to get value for current field from payload during merging                                                                                                                                                    |
+|   actionToValue    |   (payload: any, prevValue) => Default   | no | allows modification of default value field according to provided payload, *overrides mergeByKey*                                                                                                                                               |
+|   formatPayload*   |        (payload: any) => Default         | no | function to format payload for default value field, *overrides formatMergePayload*, **use actionToValue instead**                                                                                                      |
+|    modifyValue*    |      (value, prevValue) => Default       | no | allows modification of default value field, *overrides mergeByKey*, **use actionToValue instead**                                                                                                                      |
+|     payloadMap     |                PayloadMap                | no | object of extra fields that will be appended to state with their own logic                                                                                                                                             |
+<p align="right"><i>* deprecated</i></p>
 
 #### payloadMap
 
@@ -253,17 +257,25 @@ Accepts object with options or nested object with end section containing options
 
 #### Options:
 
-| Field | Type | Description |
-| :---: | :----: | :--- | 
-| initial* | any (State) | required, initial value of this field |
-| fallback | any (State) | value that will replace current field value in case falsy payload will be provided to an action. It's just a guard to prevent potential crashes of bad payload, fallbacks to `null` |
-| instanced | boolean / Actions[] | on what actions field's instanced value should be updated, by default only updates main value |
-| actions | Actions[] | actions specified in packInfo, define on what actions to expect this field update, fallbacks to ['success' / 'set'] |
-| formatSelector | (data: State) => any | function to format value for selector of this field to return. |
-| formatPayload | (payload: any) => State | function to get value for current field from payload, *overrides formatMergePayload* |
-| modifyValue | (value, prevValue, action: { code, getStateWithSelector }) => State | used to set new value according or using previous value, *overrides mergeByKey*. getStateWithSelector accepts a CRPack selector, will only work if trying to get value from the same reducer |
-| mergeByKey | keyof State | if not empty will make reducers try to merge default value with payload using key as identificator, initial and payload should be an array or an object otherwise no merge will commence |
-| formatMergePayload | (payload: any) => State[keyof State] | function to get value for current field from payload during merging |
+|       Field        |                                    Type                                     |                                                                                                        Description                                                                                                        |
+|:------------------:|:---------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:| 
+|      initial*      |                                 any (State)                                 |                                                                                         **required**, initial value of this field                                                                                         |
+|      fallback      |                                 any (State)                                 |                    value that will replace current field value in case falsy payload will be provided to an action. It's just a guard to prevent potential crashes of bad payload, fallbacks to `null`                    |
+|     instanced      |                             boolean / Actions[]                             |                                                               on what actions field's instanced value should be updated, by default only updates main value                                                               |
+|      actions       |                                  Actions[]                                  |                                                    actions specified in packInfo, define on what actions to expect this field update, fallbacks to ['success' / 'set']                                                    |
+|   formatSelector   |                            (data: State) => any                             |                                                                              function to format value for selector of this field to return.                                                                               |
+|   actionToValue    | { [actionName]: (value, prevValue, { code, instance, ...utils }) => State } | used to set new value according to payload and using previous value, separates logic according to action, will accept function responsible for update logic of specified in actions field actions, *overrides mergeByKey* |
+|     mergeByKey     |                                 keyof State                                 |                 if not empty will make reducers try to merge default value with payload using key as identificator, initial and payload should be an array or an object otherwise no merge will commence                  |
+| formatMergePayload |            (payload: any, remove: symbol) => State[keyof State]             |                                                   function to get value for current field from payload during merging, remove symbol can be used to mark ids for remova                                                   |
+|   formatPayload*   |                           (payload: any) => State                           |                                                                   function to get value for current field from payload, *overrides formatMergePayload*                                                                    |
+|    modifyValue*    |     (value, prevValue, action: { code, getStateWithSelector }) => State     |               used to set new value according or using previous value, *overrides mergeByKey*. getStateWithSelector accepts a CRPack selector, will only work if trying to get value from the same reducer                |
+<p align="right"><i>* deprecated</i></p>
+
+#### actionToValue utils
+- **getStateWithSelector** - accepts a CRPack selector, will only work accessing values/fields from the same reducer
+- **getInstancedValue** - accepts name of an instance, will return instanced value of current field
+- **forceInstance** - accepts name of an instance, will update value like it was instanced
+- **updateInstances** - { [instanceName]: (prevVal) => newValue } accepts object with names of instances and update functions receiving current instanced value
 
 #### Request Pack contains
 
@@ -364,6 +376,10 @@ Main purpose of withGenerator is to inject logic into default generator and prev
 ### configureStore(options) => store
 
 Configures store with provided options, **accepts same parameters as configureStore of @reduxjs/toolkit except reducer**, reducer will be added internally, provided will be rejected.
+
+### connectStore(store, reducers) => void
+
+*Experimental*. Connects existing store to CRPack to enable features just like with configureStore. Requires reducers before combination into single reducer otherwise existing reducers will be replaced. Will also accept initialState as third argument if required.
 
 ### createAction(name, formatPayload) => (payload) => Action
 

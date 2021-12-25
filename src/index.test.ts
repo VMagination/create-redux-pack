@@ -13,6 +13,7 @@ import createReduxPack, {
   makeKeysReadable,
 } from './index';
 import { mergePayloadByKey } from './utils/mergePayloadByKey';
+import { generateId } from './utils';
 
 const state = (): any => createReduxPack._store?.getState();
 
@@ -33,6 +34,18 @@ test('check logger toggle', () => {
   expect(createReduxPack.isLoggerOn).toEqual(false);
   disableLogger();
   expect(createReduxPack.isLoggerOn).toEqual(false);
+});
+
+test('check id generation', () => {
+  const id = generateId();
+  expect(id).toHaveLength(9);
+  expect(generateId(37)).toHaveLength(37);
+  const alotofUnique = Array(10000)
+    .fill(null)
+    .map(() => generateId(37));
+  expect(alotofUnique.every((item) => item.length === 37)).toEqual(true);
+  expect([...new Set(alotofUnique)]).toHaveLength(10000);
+  expect(id).not.toEqual(generateId());
 });
 
 test('check id generator disabling', () => {
@@ -63,6 +76,26 @@ const {
   reducerName: reducerName,
   defaultInitial: null as any,
   actions: ['extraAction'],
+  payloadMap: {
+    isLoading: {
+      initial: false,
+      fallback: false,
+      instanced: true,
+      actionToValue: {
+        success: (_arg: any) => false,
+        extraAction: (_arg: void, _prev, { forceInstance, getInstancedValue, updateInstances }) => {
+          forceInstance('extraAction');
+          getInstancedValue();
+          console.assert(getInstancedValue('asd') === false, 'getInstancedValue Failed');
+          updateInstances({
+            newInstance: true,
+            toggled: (v) => !v,
+          });
+          return false;
+        },
+      },
+    },
+  },
 });
 const uniqueName = testPackName;
 
@@ -82,28 +115,44 @@ const {
       initial: null as null | string,
     },
     item1: {
-      actions: ['success', 'run'],
-      formatPayload: (payload: { passedItem1: string } | void) => payload?.passedItem1 ?? null,
-      modifyValue: (val, _prevVal, { code, getStateWithSelector }) => {
-        getStateWithSelector(payloadPackSelectors.item2);
-        getStateWithSelector(modifyPackSelectors.result);
-        return code === 'success' ? val : null;
+      actionToValue: {
+        success: (
+          val: {
+            passedItem1: string;
+          },
+          _prevVal,
+          { getStateWithSelector },
+        ) => {
+          console.assert(
+            typeof getStateWithSelector(payloadPackSelectors.item2).b === 'number',
+            'getStateWithSelector Failed item',
+          );
+          console.assert(
+            getStateWithSelector(modifyPackSelectors.result) === null,
+            'getStateWithSelector Failed result',
+          );
+          return val?.passedItem1 ?? null;
+        },
+        run: () => {
+          return null;
+        },
       },
+      fallback: null,
       initial: null as null | string,
     },
     item2: {
       initial: { a: 1 },
-      formatPayload: (payload) => payload?.item2,
+      formatPayload: (payload: { item2: { a: number } }) => payload?.item2,
       formatSelector: (val) => ({ b: val.a }),
       fallback: { a: 10 },
     },
     item3: {
       innerItem1: {
-        formatPayload: (payload) => payload?.innerItem1,
+        formatPayload: (payload: { innerItem1: string }) => payload?.innerItem1,
         initial: '3.1',
       },
       innerItem2: {
-        formatPayload: (payload) => payload?.wha,
+        formatPayload: (payload: { wha: string }) => payload?.wha,
         initial: '3.2',
       },
     },
@@ -111,7 +160,7 @@ const {
       innerItem1: {
         innerInnerItem1: {
           initial: '4.1.1',
-          formatPayload: (payload) => payload?.keyForItem4?.sad,
+          formatPayload: (payload: { keyForItem4: { sad: string | null | number } }) => payload?.keyForItem4?.sad,
           fallback: null,
         },
       },
@@ -206,7 +255,7 @@ const {
   reducerName: reducerName + 5,
   defaultInitial: -10,
   template: 'simple',
-  actions: ['extraAction'],
+  actions: ['extraAction', 'success'],
   payloadMap: {
     counter: {
       formatPayload: (val: number | void) => val || 0,
@@ -257,7 +306,7 @@ test('check package actionNames', () => {
 
 test('check package stateNames', () => {
   expect(testPackStateNames.result).toEqual(createReduxPack.getResultName(uniqueName));
-  expect(testPackStateNames.isLoading).toEqual(createReduxPack.getLoadingName(uniqueName));
+  expect(`${testPackStateNames.isLoading}`).toEqual(createReduxPack.getLoadingName(uniqueName));
   expect(testPackStateNames.result).not.toEqual(testPackStateNames.isLoading);
 });
 
@@ -357,26 +406,56 @@ test('check store configuration', () => {
 
 test('check store manipulations', () => {
   expect(testPackSelectors.isLoading(state())).toEqual(false);
+  expect(testPackSelectors.isLoading.instances.extraAction(state())).toEqual(false);
   expect(testPackSelectors.result(state())).toEqual(null);
 
   createReduxPack._store?.dispatch(testPackActions.run());
 
   expect(testPackSelectors.isLoading(state())).toEqual(true);
+  expect(testPackSelectors.isLoading.instances.extraAction(state())).toEqual(false);
   expect(testPackSelectors.result(state())).toEqual(null);
 
   createReduxPack._store?.dispatch(testPackActions.success({ nothing: 'here' }));
 
   expect(testPackSelectors.isLoading(state())).toEqual(false);
+  expect(testPackSelectors.isLoading.instances.extraAction(state())).toEqual(false);
   expect(testPackSelectors.result(state())).toEqual({ nothing: 'here' });
 
   createReduxPack._store?.dispatch(testPackActions.run());
+  createReduxPack._store?.dispatch(testPackActions.extraAction());
 
   expect(testPackSelectors.isLoading(state())).toEqual(true);
+  expect(testPackSelectors.isLoading.instances.extraAction(state())).toEqual(false);
   expect(testPackSelectors.result(state())).toEqual({ nothing: 'here' });
 
   createReduxPack._store?.dispatch(testPackActions.fail());
 
   expect(testPackSelectors.isLoading(state())).toEqual(false);
+  expect(testPackSelectors.isLoading.instances.extraAction(state())).toEqual(false);
+  expect(testPackSelectors.result(state())).toEqual({ nothing: 'here' });
+
+  createReduxPack._store?.dispatch(testPackActions.run.instances.extraAction());
+
+  expect(testPackSelectors.isLoading(state())).toEqual(false);
+  expect(testPackSelectors.isLoading.instances.extraAction(state())).toEqual(true);
+  expect(testPackSelectors.isLoading.instances.newInstance(state())).toEqual(true);
+  expect(testPackSelectors.isLoading.instances.toggled(state())).toEqual(true);
+  expect(testPackSelectors.result(state())).toEqual({ nothing: 'here' });
+
+  createReduxPack._store?.dispatch(testPackActions.extraAction());
+
+  expect(testPackSelectors.isLoading(state())).toEqual(false);
+  expect(testPackSelectors.isLoading.instances.extraAction(state())).toEqual(false);
+  expect(testPackSelectors.isLoading.instances.newInstance(state())).toEqual(true);
+  expect(testPackSelectors.isLoading.instances.toggled(state())).toEqual(false);
+  expect(testPackSelectors.result(state())).toEqual({ nothing: 'here' });
+
+  createReduxPack._store?.dispatch(testPackActions.extraAction());
+
+  expect(testPackSelectors.isLoading(state())).toEqual(false);
+  expect(testPackSelectors.isLoading.instances.extraAction(state())).toEqual(false);
+  expect(testPackSelectors.isLoading.instances.newInstance(state())).toEqual(true);
+  expect(testPackSelectors.isLoading.instances.toggled(state())).toEqual(true);
   expect(testPackSelectors.result(state())).toEqual({ nothing: 'here' });
 
   const justANumber = 'justANumber';
@@ -604,11 +683,12 @@ test('check pack with payloadMap state management', () => {
   expect(payloadPackSelectors.item1(state())).toEqual(null);
   expect(payloadPackSelectors.item2(state())).toEqual({ b: 2 });
 
+  // @ts-ignore
   createReduxPack._store?.dispatch(payloadPackActions.success(undefined));
 
   expect(payloadPackSelectors.isLoading(state())).toEqual(false);
   expect(payloadPackSelectors.result(state())).toEqual(undefined);
-  expect(payloadPackSelectors.item1(state())).toEqual(undefined);
+  expect(payloadPackSelectors.item1(state())).toEqual(null);
   expect(payloadPackSelectors.item2(state())).toEqual({ b: 10 });
   expect(payloadPackSelectors.item2.a(state())).toEqual(10);
 
@@ -617,7 +697,7 @@ test('check pack with payloadMap state management', () => {
   expect(payloadPackSelectors.isLoading(state())).toEqual(false);
   expect(payloadPackSelectors.error(state())).toEqual('error1');
   expect(payloadPackSelectors.result(state())).toEqual(undefined);
-  expect(payloadPackSelectors.item1(state())).toEqual(undefined);
+  expect(payloadPackSelectors.item1(state())).toEqual(null);
   expect(payloadPackSelectors.item2(state())).toEqual({ b: 10 });
   expect(payloadPackSelectors.item2.a(state())).toEqual(10);
 
@@ -626,7 +706,7 @@ test('check pack with payloadMap state management', () => {
   expect(payloadPackSelectors.isLoading(state())).toEqual(false);
   expect(payloadPackSelectors.error(state())).toEqual('errorSet');
   expect(payloadPackSelectors.result(state())).toEqual(undefined);
-  expect(payloadPackSelectors.item1(state())).toEqual(undefined);
+  expect(payloadPackSelectors.item1(state())).toEqual(null);
   expect(payloadPackSelectors.item2(state())).toEqual({ b: 10 });
   expect(payloadPackSelectors.item2.a(state())).toEqual(10);
 });

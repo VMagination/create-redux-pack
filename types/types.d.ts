@@ -20,22 +20,22 @@ export declare type CRPackRequestStateNames<Config extends Params> = Expand<'pay
 export declare type CRPackSimpleStateNames<Config extends Params> = Expand<{
     value: string;
 } & (Config extends Params<infer S> ? CRPackStateName<S> : never)>;
-export declare type CRPackRequestActionNames<Actions extends PropertyKey> = Expand<CRPackActionNames<Actions | DefaultRequestActions>>;
+export declare type CRPackRequestActionNames<Actions extends PropertyKey> = Expand<CRPackActionNames<MergeLiteral<Actions, DefaultRequestActions>>>;
 export declare type CRPackActionNames<Actions extends string | number | symbol> = Expand<{
     [key in Actions]: string;
 }>;
-export declare type CRPackSimpleActionNames<Actions extends PropertyKey> = Expand<CRPackActionNames<Actions | DefaultSimpleActions>>;
-export declare type CreateReduxPackAction<DT extends any[], RT = DT> = ActionCreatorWithPreparedPayload<DT extends [never] ? [void] : DT, RT> & {
+export declare type CRPackSimpleActionNames<Actions extends PropertyKey> = Expand<CRPackActionNames<MergeLiteral<Actions, DefaultSimpleActions>>>;
+export declare type CreateReduxPackAction<DT extends any[], RT = DT> = ActionCreatorWithPreparedPayload<DT extends [never] ? [void] : DT extends [undefined] ? [void] | any : DT, RT> & {
     instances: {
         [key: string]: ActionCreatorWithPreparedPayload<DT extends [never] ? [void] : DT, RT>;
     };
 };
 declare type GetActionType<T, Key> = Expand<'initial' extends keyof T ? 'actions' extends keyof T ? number extends keyof T['actions'] ? Key extends T['actions'][number] ? 'mergeByKey' extends keyof T ? T extends CRPackPayloadMapEndItem<infer S, any> ? CRPackMergable<S> : never : T['initial'] : never : never : never : never>;
 declare type GetMainActionType<T, Key> = Expand<'initial' extends keyof T ? 'actions' extends keyof T ? number extends keyof T['actions'] ? Key extends T['actions'][number] ? 'mergeByKey' extends keyof T ? T extends CRPackPayloadMapEndItem<infer S, any> ? CRPackMergable<S> : never : T['initial'] : never : never : 'mergeByKey' extends keyof T ? T extends CRPackPayloadMapEndItem<infer S, any> ? CRPackMergable<S> : never : T['initial'] : never>;
-declare type GetFormatActionType<T, Key> = Expand<'formatPayload' extends keyof T ? 'actions' extends keyof T ? number extends keyof T['actions'] ? Key extends T['actions'][number] ? GetFirstParam<T['formatPayload']> : never : never : never : 'formatMergePayload' extends keyof T ? 'actions' extends keyof T ? number extends keyof T['actions'] ? Key extends T['actions'][number] ? GetFirstParam<T['formatMergePayload']> : never : never : never : never>;
-declare type GetMainFormatActionType<T, Key> = Expand<'formatPayload' extends keyof T ? 'actions' extends keyof T ? number extends keyof T['actions'] ? Key extends T['actions'][number] ? GetFirstParam<T['formatPayload']> : never : never : GetFirstParam<T['formatPayload']> : 'formatMergePayload' extends keyof T ? 'actions' extends keyof T ? number extends keyof T['actions'] ? Key extends T['actions'][number] ? GetFirstParam<T['formatMergePayload']> : never : never : GetFirstParam<T['formatMergePayload']> : never>;
+declare type GetFormatActionType<T, Key> = Expand<'actionToValue' extends keyof T ? Key extends keyof T['actionToValue'] ? GetFirstParam<T['actionToValue'][Key]> : T['actionToValue'] extends FN ? 'actions' extends keyof T ? number extends keyof T['actions'] ? Key extends T['actions'][number] ? GetFirstParam<T['actionToValue']> : never : never : never : never : 'formatPayload' extends keyof T ? 'actions' extends keyof T ? number extends keyof T['actions'] ? Key extends T['actions'][number] ? GetFirstParam<T['formatPayload']> : never : never : never : 'formatMergePayload' extends keyof T ? 'actions' extends keyof T ? number extends keyof T['actions'] ? Key extends T['actions'][number] ? GetFirstParam<T['formatMergePayload']> : never : never : never : never>;
+declare type GetMainFormatActionType<T, Key> = Expand<'actionToValue' extends keyof T ? Key extends keyof T['actionToValue'] ? GetFirstParam<T['actionToValue'][Key]> : T['actionToValue'] extends FN ? 'actions' extends keyof T ? number extends keyof T['actions'] ? Key extends T['actions'][number] ? GetFirstParam<T['actionToValue']> : never : never : GetFirstParam<T['actionToValue']> : never : 'formatPayload' extends keyof T ? 'actions' extends keyof T ? number extends keyof T['actions'] ? Key extends T['actions'][number] ? GetFirstParam<T['formatPayload']> : never : never : GetFirstParam<T['formatPayload']> : 'formatMergePayload' extends keyof T ? 'actions' extends keyof T ? number extends keyof T['actions'] ? Key extends T['actions'][number] ? GetFirstParam<T['formatMergePayload']> : never : never : GetFirstParam<T['formatMergePayload']> : never>;
 declare type GetFirstParam<T> = T extends (...args: any[]) => any ? Parameters<T>[0] : never;
-declare type GetRealActionType<T, Key, Main extends boolean> = 'formatPayload' extends keyof T ? never : 'formatMergePayload' extends keyof T ? never : true extends Main ? GetMainActionType<T, Key> : GetActionType<T, Key>;
+declare type GetRealActionType<T, Key, Main extends boolean> = 'formatPayload' extends keyof T ? never : 'formatMergePayload' extends keyof T ? never : 'actionToValue' extends keyof T ? never : true extends Main ? GetMainActionType<T, Key> : GetActionType<T, Key>;
 declare type GetKeys<T> = {
     [K in keyof T]: [T[K]] extends [never] ? never : K;
 }[keyof T];
@@ -46,7 +46,7 @@ export declare type GetFormatPayloadType<T, Key, Main extends boolean = false> =
 export declare type GetActionPayload<T, Key, Main extends boolean = false> = Expand<'initial' extends keyof T ? GetRealActionType<T, Key, Main> : Expand<RemoveNever<{
     [K in keyof T]: GetActionPayload<T[K], Key, Main>;
 }>>>;
-export declare type UnitedNonNever<T1, T2> = [T1] extends [never] ? T2 : [T2] extends [never] ? T1 : T1 & T2;
+export declare type UnitedNonNever<T1, T2> = [T1] extends [never] ? T2 : [T1] extends [void] ? T2 : [T2] extends [never] ? T1 : [T2] extends [void] ? T1 : T1 & T2;
 declare type PrioritizeNonNever<T1, T2> = [T1] extends [never] ? T2 : T1;
 declare const randomStr: string;
 declare type MergeLiteral<T1, T2> = typeof randomStr extends T1 ? T2 : T1 | T2;
@@ -56,7 +56,7 @@ export declare type CRPackRequestActions<Config extends Params, Actions extends 
     ]>;
 } & {
     success: CreateReduxPackAction<[
-        PrioritizeNonNever<UnitedNonNever<RemoveNever<GetActionPayload<Config['payloadMap'], 'success', true>>, GetFormatPayloadType<Config['payloadMap'], 'success', true>>, Config extends Params<any, any, any, infer Default, infer DefaultPayload> ? 'formatPayload' extends keyof Config ? DefaultPayload : 'formatMergePayload' extends keyof Config ? GetFirstParam<Config['formatMergePayload']> : 'mergeByKey' extends keyof Config ? CRPackMergable<Default> : Default : never>
+        PrioritizeNonNever<UnitedNonNever<RemoveNever<GetActionPayload<Config['payloadMap'], 'success', true>>, GetFormatPayloadType<Config['payloadMap'], 'success', true>>, Config extends Params<any, any, any, infer Default, infer DefaultPayload> ? 'formatPayload' extends keyof Config ? DefaultPayload : 'actionToValue' extends keyof Config ? DefaultPayload : 'formatMergePayload' extends keyof Config ? GetFirstParam<Config['formatMergePayload']> : 'mergeByKey' extends keyof Config ? CRPackMergable<Default> : Default : never>
     ]>;
 }>;
 declare type SelectorWithInstances<T extends OutputSelector<any, any, any>> = T & {
@@ -87,12 +87,12 @@ export declare type CRPackSimpleSelectors<Config extends Params> = Expand<'paylo
     value: OutputSelector<any, PrioritizeNonNever<Config extends Params<infer S, any, any, infer Default, unknown, infer Selector> ? 'formatSelector' extends keyof Config ? Selector : unknown extends Default ? S : Default : never, any>, any>;
 }>;
 export declare type CRPackSimpleActions<Config extends Params, Actions extends PropertyKey> = {
-    [Key in Actions | Exclude<DefaultSimpleActions, 'set'>]: CreateReduxPackAction<[
+    [Key in MergeLiteral<Actions, Exclude<DefaultSimpleActions, 'set'>>]: CreateReduxPackAction<[
         UnitedNonNever<RemoveNever<GetActionPayload<Config['payloadMap'], Key>>, GetFormatPayloadType<Config['payloadMap'], Key>>
     ]>;
 } & {
     set: CreateReduxPackAction<[
-        PrioritizeNonNever<UnitedNonNever<RemoveNever<GetActionPayload<Config['payloadMap'], 'set', true>>, GetFormatPayloadType<Config['payloadMap'], 'set', true>>, Config extends Params<any, any, any, infer Default, infer DefaultPayload> ? 'formatPayload' extends keyof Config ? DefaultPayload : Default : never>
+        PrioritizeNonNever<UnitedNonNever<RemoveNever<GetActionPayload<Config['payloadMap'], 'set', true>>, GetFormatPayloadType<Config['payloadMap'], 'set', true>>, Config extends Params<any, any, any, infer Default, infer DefaultPayload> ? 'formatPayload' extends keyof Config ? DefaultPayload : 'actionToValue' extends keyof Config ? DefaultPayload : 'formatMergePayload' extends keyof Config ? GetFirstParam<Config['formatMergePayload']> : 'mergeByKey' extends keyof Config ? CRPackMergable<Default> : Default : never>
     ]>;
 };
 export declare type CRPackWithGenFromGen<Config extends Params, Pack extends Record<any, any>> = {
@@ -198,7 +198,14 @@ declare type Expandv2<T> = {
 } & {};
 declare type Expand<T> = Expandv2<T>;
 declare type MergeByKey<T> = T extends Array<any> ? keyof T[number] : T extends Record<string, any> ? keyof T : never;
-declare type CRPackMergable<T> = T extends Array<infer A> ? A | A[] : T extends Record<string, infer R> ? R | R[] | Record<string, R> : T;
+declare type CRPackMergable<T> = T extends Array<infer A> ? A | A[] : T extends Record<string, infer R> ? R | R[] | Record<string, R | symbol> : T;
+declare type StateModifier<T, Actions, PayloadMain = any> = (payloadValue: PayloadMain, prevStateValue: T, extras: {
+    code: Actions;
+    forceInstance: (instance?: string) => void;
+    updateInstances: (instances: Record<string, ((prevVal: T) => T) | T>) => void;
+    getInstancedValue: (instance?: string) => T;
+    getStateWithSelector: <Selector extends OutputSelector<any, any, any>>(selector: Selector) => Selector extends OutputSelector<any, infer S, any> ? S : never;
+}) => T;
 declare type CRPackPayloadMapEndItem<T, Actions extends PropertyKey, PayloadMain = any, SelectorRT = any> = {
     initial: T;
     formatSelector?: (state: T) => SelectorRT;
@@ -206,18 +213,25 @@ declare type CRPackPayloadMapEndItem<T, Actions extends PropertyKey, PayloadMain
     actions?: Actions[];
     instanced?: boolean | Actions[];
 } & ({
+    actionToValue?: never;
     mergeByKey?: never;
     formatMergePayload?: never;
     formatPayload?: (payload: PayloadMain, action: Actions) => T;
-    modifyValue?: (payloadValue: T, prevStateValue: T, extras: {
-        code: Actions;
-        getStateWithSelector: <T extends OutputSelector<any, any, any>>(selector: T) => T extends OutputSelector<any, infer S, any> ? S : never;
-    }) => T;
+    modifyValue?: StateModifier<T, Actions, T>;
 } | {
+    actionToValue?: never;
     formatPayload?: never;
     modifyValue?: never;
     mergeByKey: MergeByKey<T>;
-    formatMergePayload?: (payload: PayloadMain, action: Actions) => CRPackMergable<T>;
+    formatMergePayload?: (payload: PayloadMain, action: Actions, removeSymbol: symbol) => CRPackMergable<T>;
+} | {
+    actionToValue?: StateModifier<T, Actions, PayloadMain> | {
+        [Key in Actions]?: StateModifier<T, Key>;
+    };
+    formatPayload?: never;
+    modifyValue?: never;
+    mergeByKey?: never;
+    formatMergePayload?: never;
 });
 declare type CRPackPayloadMapItem<T, Actions extends PropertyKey, PayloadMain = any, SelectorRT = any> = CRPackPayloadMapEndItem<T, Actions, PayloadMain, SelectorRT> | ({
     formatSelector?: (state: T) => SelectorRT;
@@ -242,15 +256,23 @@ export declare type Params<S = any, Actions extends PropertyKey = any, Template 
     formatSelector?: (state: Default) => DefaultSelector;
     payloadMap?: CreateReduxPackPayloadMap<S, Actions, Template>;
 } & ({
+    actionToValue?: never;
     mergeByKey?: never;
     formatMergePayload?: never;
     modifyValue?: (payloadValue: Default, prevStateValue: Default) => Default;
     formatPayload?: (payload: DefaultPayload) => Default;
 } | {
+    actionToValue?: never;
     formatPayload?: never;
     modifyValue?: never;
     mergeByKey?: MergeByKey<Default>;
-    formatMergePayload?: (payload: DefaultPayload) => CRPackMergable<Default>;
+    formatMergePayload?: (payload: DefaultPayload, removeSymbol: symbol) => CRPackMergable<Default>;
+} | {
+    actionToValue?: (payload: DefaultPayload, prevStateValue: Default) => Default;
+    formatPayload?: never;
+    modifyValue?: never;
+    mergeByKey?: never;
+    formatMergePayload?: never;
 });
 export declare type CRPackFN = <Config extends Params<S, Actions, Template>, S = any, PackName extends string = string, Actions extends PropertyKey = any, Template extends CRPackTemplates = CRPackDefaultTemplate>(info: {
     payloadMap?: CreateReduxPackPayloadMap<S, Actions, Template>;

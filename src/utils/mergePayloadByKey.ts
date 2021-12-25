@@ -1,8 +1,14 @@
+import { generateId } from './formatParams';
+
 const normalizeValue = (item: any): any => {
   if (!item) return '';
   if (typeof item === 'object' && Array.isArray(item)) return item.map((key) => `${key}`);
   return `${item}`;
 };
+
+export const mergableRemoveSymbol = (Symbol(
+  `[CRPack-mergable-${generateId(5)}]: remove field`,
+).toString() as any) as symbol; // force serialized value
 
 export const mergePayloadByKey = (state: any, payload: any, key?: PropertyKey): any => {
   if (key && payload && typeof payload === 'object' && state && typeof state === 'object') {
@@ -35,10 +41,10 @@ export const mergePayloadByKey = (state: any, payload: any, key?: PropertyKey): 
             ...payloadArray.reduce<{ [key: string]: any }>((accum, item: any) => ({ ...accum, [item[key]]: item }), {}),
           };
         } else {
-          return {
+          return Object.entries({
             ...state,
             ...payload,
-          };
+          }).reduce((accum, [key, item]) => (item !== mergableRemoveSymbol ? { ...accum, [key]: item } : accum), {});
         }
       }
     }
