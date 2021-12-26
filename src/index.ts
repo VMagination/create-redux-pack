@@ -31,8 +31,6 @@ import { requestErrorGen } from './generators/error';
 import { resetActionGen } from './generators/reset';
 import { mergableRemoveSymbol } from './utils/mergePayloadByKey';
 
-const loggerMatcher: any = () => true;
-
 const globalReducerSkip = Symbol('[CRPack]: global reducer skip');
 
 const createReduxPack: CRPackFN & CreateReduxPackType = Object.assign(
@@ -79,35 +77,20 @@ const createReduxPack: CRPackFN & CreateReduxPackType = Object.assign(
         createReduxPack._reducers,
       );
       createReduxPack._reducers = combinedObjects;
-      const combinedReducers = Object.keys(combinedObjects).reduce(
-        (accum, key) => {
-          const initial =
-            initialState && initialState[key]
-              ? { ...createReduxPack._initialState[key], ...initialState[key] }
-              : createReduxPack._initialState[key];
-          createReduxPack._initialState[key] = initial;
-          return {
-            ...accum,
-            [key]:
-              typeof combinedObjects[key] === 'object'
-                ? createReducer(initial, combinedObjects[key])
-                : (combinedObjects[key] as any),
-          };
-        },
-        (createReduxPack.isLoggerOn
-          ? {
-              __Create_Redux_Pack_Logger__: createReducer({}, {}, [
-                {
-                  matcher: loggerMatcher,
-                  reducer: (state, action) => {
-                    console.log(`[CRPack_Logger]: %c${action.type}`, 'font-weight: bold', { payload: action.payload });
-                    return { ...state };
-                  },
-                },
-              ]),
-            }
-          : {}) as Record<string, Reducer>,
-      );
+      const combinedReducers = Object.keys(combinedObjects).reduce((accum, key) => {
+        const initial =
+          initialState && initialState[key]
+            ? { ...createReduxPack._initialState[key], ...initialState[key] }
+            : createReduxPack._initialState[key];
+        createReduxPack._initialState[key] = initial;
+        return {
+          ...accum,
+          [key]:
+            typeof combinedObjects[key] === 'object'
+              ? createReducer(initial, combinedObjects[key])
+              : (combinedObjects[key] as any),
+        };
+      }, {} as Record<string, Reducer>);
       const reducer = Object.keys(combinedReducers).length ? combineReducers(combinedReducers) : (state: any) => state;
       return (state: any, action: AnyAction) => {
         if (action.type in (createReduxPack as any)._globalReducers) {
@@ -115,9 +98,24 @@ const createReduxPack: CRPackFN & CreateReduxPackType = Object.assign(
           if (result !== globalReducerSkip) return result;
         }
 
-        if (action.type === resetAction.type) return createReduxPack._initialState;
+        const log = (nextState: any) => {
+          if (createReduxPack.isLoggerOn) {
+            console.log(`[CRPack_Logger]: %c${action.type}`, 'font-weight: bold', {
+              previousState: state,
+              payload: action.payload,
+              nextState,
+            });
+          }
+        };
 
-        return reducer(state, action);
+        if (action.type === resetAction.type) {
+          log(createReduxPack._initialState);
+          return createReduxPack._initialState;
+        }
+
+        const nextState = reducer(state, action);
+        log(nextState);
+        return nextState;
       };
     },
     _globalReducers: {},

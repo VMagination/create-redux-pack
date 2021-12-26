@@ -660,12 +660,10 @@ type CRPackPayloadMapEndItem<T, Actions extends PropertyKey, PayloadMain = any, 
 
 type CRPackPayloadMapItem<T, Actions extends PropertyKey, PayloadMain = any, SelectorRT = any> =
   | CRPackPayloadMapEndItem<T, Actions, PayloadMain, SelectorRT>
-  | (
-      | { formatSelector?: (state: T) => SelectorRT }
-      | {
-          [K in keyof T]?: CRPackPayloadMapItem<T[K], Actions, PayloadMain>;
-        }
-    );
+  | {
+      // | { formatSelector?: (state: T) => SelectorRT }
+      [K in keyof T]?: CRPackPayloadMapItem<T[K], Actions, PayloadMain>;
+    };
 
 export type CreateReduxPackPayloadMap<S = any, Actions extends PropertyKey = any, Template = any> = {
   [P in keyof S]?: CRPackPayloadMapItem<
