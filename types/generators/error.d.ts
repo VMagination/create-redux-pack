@@ -10,7 +10,7 @@ export declare const requestErrorGen: {
         error: import("reselect").OutputSelector<any, unknown, (res: any) => unknown>;
     };
     actions: <Config_3 extends Params<any, any, any, any, any, any>>({ name }: Config_3) => {
-        fail: CreateReduxPackAction<[[GetFormatPayloadType<Config_3["payloadMap"], "fail", false>] extends [never] ? any : any], [[GetFormatPayloadType<Config_3["payloadMap"], "fail", false>] extends [never] ? any : any]>;
+        fail: CreateReduxPackAction<[GetFormatPayloadType<Config_3["payloadMap"], "fail", false>], [GetFormatPayloadType<Config_3["payloadMap"], "fail", false>]>;
     };
     reducer: <Config_4 extends Params<any, any, any, any, any, any>>({ name }: Config_4) => CRPackReducer;
 };

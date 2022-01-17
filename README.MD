@@ -453,6 +453,10 @@ Adds reducer according to action map to update global state. Even if action with
 
 *ReadOnly*. Contains store configured with configureStore.
 
+### createReduxPack._history.print()
+
+Logs reducers tree with currently active packages and the time of their creation.
+
 ### createReduxPack._reducers
 
 *ReadOnly*. Contains all injected reducers (merged)

@@ -413,4 +413,7 @@ test('check reset action with instances', () => {
   expect(mergeSelectors.field2.instances.asd(state())).toEqual({});
   expect(mergeSelectors.field(state())).toEqual({});
   expect(mergeSelectors.field.instances.a(state())).toEqual({});
+
+  const { asdSelectors } = createReduxPack({ name: 'asd', reducerName });
+  expect(asdSelectors.isLoading(state())).toEqual(false);
 });

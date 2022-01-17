@@ -170,6 +170,9 @@ export declare type CreateReduxPackType = {
     getNameWithInstance: (name: string, instance?: string) => string;
     _generators: Record<string, CRPackArbitraryGen>;
     _reducers: Record<string, CRPackReducer>;
+    _history: Record<string, Record<string, string | boolean>> & {
+        print: () => void;
+    };
     _initialState: CRPackInitialState<any>;
     simpleDefaultActions: string[];
     requestDefaultActions: string[];
@@ -233,11 +236,9 @@ declare type CRPackPayloadMapEndItem<T, Actions extends PropertyKey, PayloadMain
     mergeByKey?: never;
     formatMergePayload?: never;
 });
-declare type CRPackPayloadMapItem<T, Actions extends PropertyKey, PayloadMain = any, SelectorRT = any> = CRPackPayloadMapEndItem<T, Actions, PayloadMain, SelectorRT> | ({
-    formatSelector?: (state: T) => SelectorRT;
-} | {
+declare type CRPackPayloadMapItem<T, Actions extends PropertyKey, PayloadMain = any, SelectorRT = any> = CRPackPayloadMapEndItem<T, Actions, PayloadMain, SelectorRT> | {
     [K in keyof T]?: CRPackPayloadMapItem<T[K], Actions, PayloadMain>;
-});
+};
 export declare type CreateReduxPackPayloadMap<S = any, Actions extends PropertyKey = any, Template = any> = {
     [P in keyof S]?: CRPackPayloadMapItem<S[P], Actions | (Template extends 'request' ? DefaultRequestActions : DefaultSimpleActions)>;
 };

@@ -1,4 +1,4 @@
-import { AnyAction, configureStore as configureStoreToolkit, createReducer } from '@reduxjs/toolkit';
+import { AnyAction, configureStore as configureStoreToolkit } from '@reduxjs/toolkit';
 import { Action, CreateReduxPackActionMap, CRPackReducer, CreateReduxPackType, CRPackArbitraryGen } from './types';
 import { combineReducers, Reducer, Store } from 'redux';
 import {
@@ -23,7 +23,10 @@ import {
   getNameWithInstance,
   getActionName,
   getLazyPack,
+  createReducer,
   generateId,
+  hasCRPackName,
+  CRPackRegex,
 } from './utils';
 import { CRPackFN, CRPackTemplates, Params, CreateReduxPackPayloadMap } from './types';
 import { requestDefaultActions, requestGen, simpleDefaultActions, simpleGen } from './generators';
@@ -46,7 +49,8 @@ const createReduxPack: CRPackFN & CreateReduxPackType = Object.assign(
       },
   ) => {
     const info = formatParams(infoRaw, createReduxPack._idGeneration) as any;
-    const { reducerName, template = 'request' } = info;
+    const { reducerName, template = 'request', name } = info;
+    createReduxPack._history[reducerName] = { updated: false, [name]: new Date().toISOString() };
     const templateGen = createReduxPack._generators[template] || createReduxPack._generators.request;
 
     const lazyPack = getLazyPack(templateGen, info);
@@ -62,6 +66,13 @@ const createReduxPack: CRPackFN & CreateReduxPackType = Object.assign(
   },
   {
     _reducers: {},
+    _history: new Proxy(
+      {},
+      {
+        get: (t, p, s) => (p !== 'print' ? Reflect.get(t, p, s) : () => console.log({ CRPackHistory: t })),
+        set: (t, p, v, s) => Reflect.set(t, p, { ...Reflect.get(t, p, s), ...v }),
+      },
+    ) as CreateReduxPackType['_history'],
     _initialState: {},
     isLoggerOn: false,
     getRootReducer: (
@@ -77,6 +88,7 @@ const createReduxPack: CRPackFN & CreateReduxPackType = Object.assign(
         createReduxPack._reducers,
       );
       createReduxPack._reducers = combinedObjects;
+      const markUpdated = new Set<string>();
       const combinedReducers = Object.keys(combinedObjects).reduce((accum, key) => {
         const initial =
           initialState && initialState[key]
@@ -87,7 +99,14 @@ const createReduxPack: CRPackFN & CreateReduxPackType = Object.assign(
           ...accum,
           [key]:
             typeof combinedObjects[key] === 'object'
-              ? createReducer(initial, combinedObjects[key])
+              ? createReducer(initial, combinedObjects[key], (state = initial) => {
+                  const reducerHistory = createReduxPack._history[key];
+                  if (!reducerHistory?.updated) {
+                    markUpdated.add(key);
+                    return { ...initial, ...state };
+                  }
+                  return state;
+                })
               : (combinedObjects[key] as any),
         };
       }, {} as Record<string, Reducer>);
@@ -100,11 +119,37 @@ const createReduxPack: CRPackFN & CreateReduxPackType = Object.assign(
 
         const log = (nextState: any) => {
           if (createReduxPack.isLoggerOn) {
-            console.log(`[CRPack_Logger]: %c${action.type}`, 'font-weight: bold', {
-              previousState: state,
-              payload: action.payload,
-              nextState,
-            });
+            const hashCode = function (str: string) {
+              let hash = 0,
+                i,
+                chr;
+              if (str.length === 0) return hash;
+              for (i = 0; i < str.length; i++) {
+                chr = str.charCodeAt(i) * 2;
+                hash = (hash << 3) - hash + chr;
+                hash |= 8;
+              }
+              return hash;
+            };
+            if (hasCRPackName(action.type)) {
+              const a = `${hashCode(action.type?.match?.(CRPackRegex)?.[0] || action.type)}`
+                .replace('-', '')
+                .split('')
+                .reverse()
+                .join('');
+              console.groupCollapsed(
+                `[CRPack_Logger]: ${action.type} %cww`,
+                `color:transparent;background-color: #${Math.floor(+`0.${a}` * 16777215)
+                  .toString(16)
+                  .padEnd(6, '8')}`,
+              );
+            } else {
+              console.groupCollapsed(`[CRPack_Logger]: %c${action.type}`, 'font-weight: bold');
+            }
+            console.log({ previousState: state });
+            console.log({ action });
+            console.log({ nextState });
+            console.groupEnd();
           }
         };
 
@@ -114,6 +159,11 @@ const createReduxPack: CRPackFN & CreateReduxPackType = Object.assign(
         }
 
         const nextState = reducer(state, action);
+        if (markUpdated.size) {
+          markUpdated.forEach((key) => {
+            createReduxPack._history[key] = { updated: new Date().toISOString() };
+          });
+        }
         log(nextState);
         return nextState;
       };
@@ -271,6 +321,7 @@ const createReducerOn = <S>(
   initialState: S,
   actionMap: Record<string, (state: S, action: Action<any>) => S>,
 ): void => {
+  createReduxPack._history[reducerName] = { updated: false };
   createReduxPack.injectReducerInto(reducerName || 'UnspecifiedReducer', actionMap || {}, initialState || {});
 };
 

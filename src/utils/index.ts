@@ -10,3 +10,4 @@ export * from './makeKeysReadable';
 export * from './payloadMappers';
 export * from './nameGetters';
 export * from './getLazyPack';
+export * from './createReducer';

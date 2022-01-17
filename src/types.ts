@@ -541,6 +541,7 @@ export type CreateReduxPackType = {
   getNameWithInstance: (name: string, instance?: string) => string;
   _generators: Record<string, CRPackArbitraryGen>;
   _reducers: Record<string, CRPackReducer>;
+  _history: Record<string, Record<string, string | boolean>> & { print: () => void };
   _initialState: CRPackInitialState<any>;
   simpleDefaultActions: string[];
   requestDefaultActions: string[];
