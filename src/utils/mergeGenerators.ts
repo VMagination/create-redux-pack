@@ -1,4 +1,5 @@
 import { Action, CombineFn, Params, CRPackWithGen } from '../types';
+import {removeMarked} from "./createReducerCase";
 
 export const mergeGenerators = <
   Config extends Params,
@@ -41,10 +42,12 @@ export const mergeGenerators = <
                       {},
                     );
                   }
-                  return {
+                  const nextState = {
                     ...innerAccum,
                     ...toReturn,
                   };
+                  removeMarked(nextState);
+                  return nextState;
                 },
                 isMerging ? {} : { ...state },
               );

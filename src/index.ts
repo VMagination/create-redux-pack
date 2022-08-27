@@ -33,6 +33,7 @@ import { requestDefaultActions, requestGen, simpleDefaultActions, simpleGen } fr
 import { requestErrorGen } from './generators/error';
 import { resetActionGen } from './generators/reset';
 import { mergableRemoveSymbol } from './utils/mergePayloadByKey';
+import { generateColorByHash } from './utils/generateColorByHash';
 
 const globalReducerSkip = Symbol('[CRPack]: global reducer skip');
 
@@ -119,29 +120,12 @@ const createReduxPack: CRPackFN & CreateReduxPackType = Object.assign(
 
         const log = (nextState: any) => {
           if (createReduxPack.isLoggerOn) {
-            const hashCode = function (str: string) {
-              let hash = 0,
-                i,
-                chr;
-              if (str.length === 0) return hash;
-              for (i = 0; i < str.length; i++) {
-                chr = str.charCodeAt(i) * 2;
-                hash = (hash << 3) - hash + chr;
-                hash |= 8;
-              }
-              return hash;
-            };
             if (hasCRPackName(action.type)) {
-              const a = `${hashCode(action.type?.match?.(CRPackRegex)?.[0] || action.type)}`
-                .replace('-', '')
-                .split('')
-                .reverse()
-                .join('');
               console.groupCollapsed(
                 `[CRPack_Logger]: ${action.type} %cww`,
-                `color:transparent;background-color: #${Math.floor(+`0.${a}` * 16777215)
-                  .toString(16)
-                  .padEnd(6, '8')}`,
+                `color:transparent;background-color: ${generateColorByHash(
+                  action.type?.match?.(CRPackRegex)?.[0] || action.type,
+                )}`,
               );
             } else {
               console.groupCollapsed(`[CRPack_Logger]: %c${action.type}`, 'font-weight: bold');

@@ -4,6 +4,7 @@ import { combineReducers } from 'redux';
 import createReduxPack, { connectStore, resetAction, requestErrorGen, resetActionGen } from '../index';
 import { simpleGen } from './simple';
 import { mergableRemoveSymbol } from '../utils/mergePayloadByKey';
+import { getNameWithInstance } from '../utils';
 
 const state = () => createReduxPack._store?.getState() as any;
 
@@ -82,7 +83,12 @@ const { checkMActions } = createReduxPack({
   },
 });
 
-const { selectors: mergeSelectors, actions: mergeActions, withGenPayloadCustomActionsActions } = createReduxPack({
+const {
+  selectors: mergeSelectors,
+  actions: mergeActions,
+  withGenPayloadCustomActionsActions,
+  withGenPayloadCustomActionsStateNames,
+} = createReduxPack({
   name: 'WithGenPayloadCustomActions',
   reducerName: reducerName,
   actions: ['sad', 'asd', 'wasd'],
@@ -285,6 +291,9 @@ test('check merge by key payload', () => {
   expect(mergeActions).toEqual(withGenPayloadCustomActionsActions);
   expect(mergeSelectors.field(state())).toEqual({});
   expect(mergeSelectors.field2(state())).toEqual({});
+  expect(state()[reducerName][getNameWithInstance(withGenPayloadCustomActionsStateNames.field2, 'asd')]).toEqual(
+    undefined,
+  );
 
   createReduxPack._store?.dispatch(mergeActions.sad.instances.wasd({ field: [{ id: 'asd', value: '1' }] }));
   expect(mergeSelectors.field(state())).toEqual({ asd: { id: 'asd', value: '1' } });
@@ -321,6 +330,9 @@ test('check merge by key payload', () => {
   createReduxPack._store?.dispatch(mergeActions.asd({ id: 'wasd', value: '1' }));
   expect(mergeSelectors.field2(state())).toEqual({ wasd: { id: 'wasd', value: '1' } });
 
+  expect(state()[reducerName][getNameWithInstance(withGenPayloadCustomActionsStateNames.field2, 'asd')]).not.toEqual(
+    undefined,
+  );
   expect(mergeSelectors.field2.instances.asd(state())).toEqual({ asd: { id: 'asd', value: '1' } });
   createReduxPack._store?.dispatch(mergeActions.asd.instances.asd({ id: 'sad', value: '2' }));
   expect(mergeSelectors.field2.instances.asd(state())).toEqual({
@@ -410,6 +422,9 @@ test('check reset action with instances', () => {
   expect(mergeSelectors.result.instances.a(state())).toEqual({});
   expect(mergeSelectors.result.instances.b(state())).toEqual({});
   expect(mergeSelectors.field2(state())).toEqual({});
+  expect(state()[reducerName][getNameWithInstance(withGenPayloadCustomActionsStateNames.field2, 'asd')]).toEqual(
+    undefined,
+  );
   expect(mergeSelectors.field2.instances.asd(state())).toEqual({});
   expect(mergeSelectors.field(state())).toEqual({});
   expect(mergeSelectors.field.instances.a(state())).toEqual({});

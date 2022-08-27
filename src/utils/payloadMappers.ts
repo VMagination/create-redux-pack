@@ -5,10 +5,10 @@ import { DefaultStateNames, getKeyName, getNameWithInstance } from './nameGetter
 import { makeKeysReadable } from './makeKeysReadable';
 import { mergableRemoveSymbol, mergePayloadByKey } from './mergePayloadByKey';
 import { selectorWithInstances } from './selectorWithInstances';
+import { removeMark, empty } from '../constants';
+import { deepEqual } from 'fast-equals';
 
 const shouldRecursionEnd = (payloadMapByKey: any) => 'initial' in payloadMapByKey;
-
-const empty = Symbol('CRPack value: empty');
 
 const isTreeEmpty = (obj: any): boolean => {
   const keys = Object.keys(obj);
@@ -111,7 +111,13 @@ export const addStateParam = ({
           },
         )
       : mergePayloadByKey(state[stateKey] ?? payloadMapByKey?.initial, payloadValue, payloadMapByKey?.mergeByKey);
-    obj[stateKey] = newValue;
+    console.assert(!(stateKey.includes('field2') && stateKey.includes('asd') && isInstanced && instance && !Object.keys(newValue).length), JSON.stringify({
+      stateKey,
+      newValue: JSON.stringify(newValue),
+      initial: JSON.stringify(payloadMapByKey?.initial),
+      isEqual: deepEqual(newValue, payloadMapByKey?.initial),
+    }));
+    obj[stateKey] = isInstanced && instance && deepEqual(newValue, payloadMapByKey?.initial) ? removeMark : newValue;
   } else if (!DefaultStateNames[`${prefix}${key}`]) {
     obj[stateKey] = empty;
   }

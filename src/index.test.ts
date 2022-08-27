@@ -13,7 +13,8 @@ import createReduxPack, {
   makeKeysReadable,
 } from './index';
 import { mergePayloadByKey } from './utils/mergePayloadByKey';
-import { generateId } from './utils';
+import { CRPackRegex, generateId, getNameWithInstance } from './utils';
+import { generateColorByHash } from './utils/generateColorByHash';
 
 const state = (): any => createReduxPack._store?.getState();
 
@@ -40,12 +41,21 @@ test('check id generation', () => {
   const id = generateId();
   expect(id).toHaveLength(9);
   expect(generateId(37)).toHaveLength(37);
-  const alotofUnique = Array(10000)
+  const aLotOfUnique = Array(10000)
     .fill(null)
     .map(() => generateId(37));
-  expect(alotofUnique.every((item) => item.length === 37)).toEqual(true);
-  expect([...new Set(alotofUnique)]).toHaveLength(10000);
+  expect(aLotOfUnique.every((item) => item.length === 37)).toEqual(true);
+  expect([...new Set(aLotOfUnique)]).toHaveLength(10000);
   expect(id).not.toEqual(generateId());
+});
+
+test('check color generation', () => {
+  const asdHash = generateColorByHash('asd');
+  const sadHash = generateColorByHash('sad');
+  expect(typeof asdHash === 'string').toEqual(true);
+  expect(/#[0-9A-Fa-f]{6}/.test(asdHash)).toEqual(true);
+  expect(generateColorByHash('')).toEqual('#000000');
+  expect(sadHash).not.toEqual(asdHash);
 });
 
 test('check id generator disabling', () => {
@@ -409,7 +419,18 @@ test('check store manipulations', () => {
   expect(testPackSelectors.isLoading.instances.extraAction(state())).toEqual(false);
   expect(testPackSelectors.result(state())).toEqual(null);
 
+  console.groupCollapsed = jest.fn();
+  enableLogger();
+
   createReduxPack._store?.dispatch(testPackActions.run());
+
+  expect(console.groupCollapsed).toHaveBeenCalledWith(
+    `[CRPack_Logger]: ${testPackActionNames.run} %cww`,
+    `color:transparent;background-color: ${generateColorByHash(
+      testPackActionNames.run?.match?.(CRPackRegex)?.[0] || testPackActionNames.run,
+    )}`,
+  );
+  disableLogger();
 
   expect(testPackSelectors.isLoading(state())).toEqual(true);
   expect(testPackSelectors.isLoading.instances.extraAction(state())).toEqual(false);
@@ -480,13 +501,17 @@ test('check store manipulations', () => {
 test('check store manipulations \\w instances', () => {
   expect(testPackSelectors.isLoading(state())).toEqual(false);
   expect(testPackSelectors.isLoading.instances.instance1(state())).toEqual(false);
+  expect(state()[reducerName][getNameWithInstance(testPackStateNames.isLoading, 'instance1')]).toEqual(undefined);
   expect(testPackSelectors.isLoading.instances.instance2(state())).toEqual(false);
+  expect(state()[reducerName][getNameWithInstance(testPackStateNames.isLoading, 'instance2')]).toEqual(undefined);
   expect(testPackSelectors.result(state())).toEqual(null);
 
   createReduxPack._store?.dispatch(testPackActions.run.instances.instance1());
 
   expect(testPackSelectors.isLoading(state())).toEqual(false);
+  expect(state()[reducerName][getNameWithInstance(testPackStateNames.isLoading, 'instance1')]).toEqual(true);
   expect(testPackSelectors.isLoading.instances.instance1(state())).toEqual(true);
+  expect(state()[reducerName][getNameWithInstance(testPackStateNames.isLoading, 'instance2')]).toEqual(undefined);
   expect(testPackSelectors.isLoading.instances.instance2(state())).toEqual(false);
   expect(testPackSelectors.result(state())).toEqual(null);
 
@@ -528,7 +553,9 @@ test('check store manipulations \\w instances', () => {
   createReduxPack._store?.dispatch(testPackActions.success.instances.instance1({ i: 1 }));
 
   expect(testPackSelectors.isLoading(state())).toEqual(false);
+  expect(state()[reducerName][getNameWithInstance(testPackStateNames.isLoading, 'instance1')]).toEqual(undefined);
   expect(testPackSelectors.isLoading.instances.instance1(state())).toEqual(false);
+  expect(state()[reducerName][getNameWithInstance(testPackStateNames.isLoading, 'instance2')]).toEqual(true);
   expect(testPackSelectors.isLoading.instances.instance2(state())).toEqual(true);
   expect(testPackSelectors.result(state())).toEqual({ i: 1 });
 
@@ -542,7 +569,9 @@ test('check store manipulations \\w instances', () => {
   createReduxPack._store?.dispatch(resetAction());
 
   expect(testPackSelectors.isLoading(state())).toEqual(false);
+  expect(state()[reducerName][getNameWithInstance(testPackStateNames.isLoading, 'instance1')]).toEqual(undefined);
   expect(testPackSelectors.isLoading.instances.instance1(state())).toEqual(false);
+  expect(state()[reducerName][getNameWithInstance(testPackStateNames.isLoading, 'instance2')]).toEqual(undefined);
   expect(testPackSelectors.isLoading.instances.instance2(state())).toEqual(false);
   expect(testPackSelectors.result(state())).toEqual(null);
 });
