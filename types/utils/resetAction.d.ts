@@ -1,3 +1,5 @@
-export declare const resetAction: import("@reduxjs/toolkit").ActionCreatorWithoutPayload<string> & {
+export declare const resetAction: (() => {
+    type: string;
+}) & {
     type: string;
 };

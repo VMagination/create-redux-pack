@@ -1,6 +1,12 @@
-import { AnyAction, configureStore as configureStoreToolkit } from '@reduxjs/toolkit';
-import { Action, CreateReduxPackActionMap, CRPackReducer, CreateReduxPackType, CRPackArbitraryGen } from './types';
-import { combineReducers, Reducer, Store } from 'redux';
+import {
+  AnyAction,
+  Action,
+  CreateReduxPackActionMap,
+  CRPackReducer,
+  CreateReduxPackType,
+  CRPackArbitraryGen,
+} from './types';
+import { combineReducers, Reducer, Store, createStore as createStoreBase } from 'redux';
 import {
   mergeObjects,
   createAction,
@@ -253,13 +259,12 @@ const disableLogger = (): void => {
   }
 };
 
-const configureStore: (
-  options?: Omit<Parameters<typeof configureStoreToolkit>[0], 'reducer'>,
-) => ReturnType<typeof configureStoreToolkit> = (options) => {
-  const store = configureStoreToolkit({
-    ...(options || {}),
-    reducer: createReduxPack.getRootReducer(),
-  });
+type OmitFirstArg<F> = F extends (x: any, ...args: infer P) => infer R ? (...args: P) => R : never;
+
+const createStore: (...args: Parameters<OmitFirstArg<typeof createStoreBase>>) => ReturnType<typeof createStoreBase> = (
+  ...args
+) => {
+  const store = createStoreBase(createReduxPack.getRootReducer(), ...args);
   createReduxPack._store = store;
   return store;
 };
@@ -269,7 +274,7 @@ const connectStore = (store: Store, reducers: Parameters<typeof combineReducers>
   if (!reducers) {
     createReduxPack.updateReducer();
     return console.warn(
-      "CRPack applyStore didn't receive a reducer, if there are none use CRPack's configureStore utility instead",
+      "CRPack connectStore didn't receive a reducer, if there are none, please use CRPack's createStore utility instead",
     );
   }
   if (typeof reducers === 'object') {
@@ -313,7 +318,7 @@ export {
   connectStore,
   createSelector,
   createAction,
-  configureStore,
+  createStore,
   enableLogger,
   disableLogger,
   createReducerOn,

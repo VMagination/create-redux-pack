@@ -1,11 +1,42 @@
-import { ActionCreatorWithPreparedPayload, AnyAction, configureStore } from '@reduxjs/toolkit';
-import { Reducer } from 'redux';
+import { createStore, Reducer } from 'redux';
 import { OutputSelector } from 'reselect';
+
+export type BaseAction<T = any> = {
+  type: T;
+};
 
 export type Action<T> = {
   type: string;
   payload: T;
 } & Record<string, any>;
+
+export interface AnyAction extends BaseAction {
+  [extraProps: string]: any;
+}
+
+export declare type PayloadAction<P = void, T extends string = string, M = never, E = never> = {
+  payload: P;
+  type: T;
+} & ([M] extends [never]
+  ? {}
+  : {
+      meta: M;
+    }) &
+  ([E] extends [never]
+    ? {}
+    : {
+        error: E;
+      });
+
+export declare interface ActionCreatorWithPreparedPayload<
+  Args extends unknown[],
+  P,
+  T extends string = string,
+  E = never,
+  M = never
+> {
+  (...args: Args): PayloadAction<P, T, M, E>;
+}
 
 export type CRPackReducer = Record<string, (state: any, action: Action<Record<string, any>>) => any>;
 
@@ -556,7 +587,7 @@ export type CreateReduxPackType = {
     actionMap: CreateReduxPackActionMap,
     initialState: Record<string, any>,
   ) => void;
-  _store: ReturnType<typeof configureStore> | null;
+  _store: ReturnType<typeof createStore> | null;
   preventReducerUpdates: boolean;
   freezeReducerUpdates: () => void;
   releaseReducerUpdates: () => void;

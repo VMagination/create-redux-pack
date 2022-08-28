@@ -1,13 +1,33 @@
 import { CreateReduxPackAction } from '../types';
-import { createAction as createToolkitAction } from '@reduxjs/toolkit';
+
+export function createBaseAction<PA extends Function = any>(type: string, prepareAction?: PA): any {
+  function actionCreator(...args: any[]) {
+    if (prepareAction) {
+      const prepared = prepareAction(...args) ?? {};
+      return {
+        type,
+        payload: prepared?.payload,
+        ...('meta' in prepared && { meta: prepared.meta }),
+        ...('error' in prepared && { error: prepared.error }),
+      };
+    }
+    return { type, payload: args[0] };
+  }
+
+  actionCreator.toString = () => `${type}`;
+
+  actionCreator.type = type;
+
+  return actionCreator;
+}
 
 export const createAction = <Payload extends any[], FP extends (...data: Payload) => any>(
   name: string,
   formatPayload?: FP,
 ): CreateReduxPackAction<Parameters<FP>, ReturnType<FP>> =>
   Object.assign(
-    createToolkitAction(name, (data) => ({
-      payload: formatPayload ? formatPayload(...([data] as Payload)) : data,
+    createBaseAction(name, (...data: Parameters<FP>) => ({
+      payload: formatPayload ? formatPayload(...data) : data.length <= 1 ? data[0] : data,
     })),
     {
       instances: new Proxy(
@@ -20,8 +40,8 @@ export const createAction = <Payload extends any[], FP extends (...data: Payload
             Reflect.set(
               t,
               p,
-              createToolkitAction(name, (data) => ({
-                payload: formatPayload ? formatPayload(...([data] as Payload)) : data,
+              createBaseAction(name, (...data: Parameters<FP>) => ({
+                payload: formatPayload ? formatPayload(...data) : data.length <= 1 ? data[0] : data,
                 meta: {
                   instance: p,
                 },

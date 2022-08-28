@@ -80,9 +80,18 @@ To add logic of a pack it is required to inject its reducer and initialState int
       ...pack.initialState,
     } 
 
+    // with cases
     export const sampleReducer = createReducer(initialState, {
       ...pack.reducer,
-    });      
+    });
+    // with builder
+    export const sampleReducer = createReducer(initialState, (builder) => {
+      Object.keys(pack.reducer).forEach((actionName) => {
+        builder.addCase(pack.actionNames[actionName], (state, action) => {
+          return pack.reducer[actionName](state, action);
+        });
+      });
+    });
 
     // Or traditional way
 
@@ -373,9 +382,9 @@ Main purpose of withGenerator is to inject logic into default generator and prev
 - **resetActionGen** - will add an action to reset default and payloadMap fields of the pack
 - **requestErrorGen** - will add error field that will be updated on fail action of request template, with state name and selector
 
-### configureStore(options) => store
+### createStore(...args) => store
 
-Configures store with provided options, **accepts same parameters as configureStore of @reduxjs/toolkit except reducer**, reducer will be added internally, provided will be rejected.
+Creates store with provided args, **accepts same parameters as createStore of redux except for the first param that is reducer**, reducer will be added internally
 
 ### connectStore(store, reducers) => void
 

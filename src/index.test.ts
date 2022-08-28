@@ -4,7 +4,7 @@ import createReduxPack, {
   requestErrorGen,
   disableLogger,
   enableLogger,
-  configureStore,
+  createStore,
   createReducerOn,
   createAction,
   createSelector,
@@ -13,7 +13,7 @@ import createReduxPack, {
   makeKeysReadable,
 } from './index';
 import { mergePayloadByKey } from './utils/mergePayloadByKey';
-import { CRPackRegex, generateId, getNameWithInstance } from './utils';
+import { createBaseAction, CRPackRegex, generateId, getNameWithInstance } from './utils';
 import { generateColorByHash } from './utils/generateColorByHash';
 
 const state = (): any => createReduxPack._store?.getState();
@@ -225,7 +225,7 @@ const {
       }),
       reducer: ({ name }) => ({
         [createReduxPack.getRunName(name)]: createReducerCase((state) => ({
-          ...state, // its here for warn test
+          ...state, // it's here for warn test
           [createReduxPack.getLoadingName(name)]: false,
           somethingCool: 'right here',
         })),
@@ -366,7 +366,7 @@ test('check store configuration', () => {
   expect(createReduxPack._store).toEqual(null);
   expect(
     (() => {
-      store = configureStore();
+      store = createStore();
       return store;
     })(),
   ).toBeDefined();
@@ -420,6 +420,7 @@ test('check store manipulations', () => {
   expect(testPackSelectors.result(state())).toEqual(null);
 
   console.groupCollapsed = jest.fn();
+  console.log = jest.fn();
   enableLogger();
 
   createReduxPack._store?.dispatch(testPackActions.run());
@@ -904,8 +905,11 @@ test('check simple template \\w store manipulations', () => {
 test('check createAction', () => {
   expect(createAction).toBeDefined();
   const action = createAction('text');
+  const actionBase = createBaseAction('text');
   expect(action).toBeDefined();
+  expect(actionBase).toBeDefined();
   expect(action()).toEqual({ type: 'text' });
+  expect(actionBase()).toEqual({ type: 'text' });
   expect(action({ a: 1 })).toEqual({ type: 'text', payload: { a: 1 } });
   const actionWithPrepare = createAction('text', ({ a }: { a: number }) => a);
   expect(actionWithPrepare({ a: 1 })).toEqual({ type: 'text', payload: 1 });

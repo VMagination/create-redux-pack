@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { configureStore as configureToolkitStore } from '@reduxjs/toolkit';
-import { combineReducers } from 'redux';
+import { combineReducers, createStore } from 'redux';
 import createReduxPack, { connectStore, resetAction, requestErrorGen, resetActionGen } from '../index';
 import { simpleGen } from './simple';
 import { mergableRemoveSymbol } from '../utils/mergePayloadByKey';
@@ -130,10 +129,10 @@ const reducer = (state: any = initialState, action: any) => {
 };
 
 test('check default gens merge and store connection', () => {
-  const store = configureToolkitStore({
+  const store = createStore(
     // @ts-ignore
-    reducer: combineReducers({ default: reducer, badReducer: false }),
-  });
+    combineReducers({ default: reducer, badReducer: false }),
+  );
   console.warn = jest.fn();
   // @ts-ignore
   connectStore(store);
